@@ -208,7 +208,9 @@
             padding-left: 0 !important;
             page-break-after: avoid;
         }
-        .sub-table th { background-color: #ddd !important; color: #000 !important; border: 1px solid #000; }
-        .sub-table td { border: 1px solid #000; color: #000; }
+        .sub-table th { background-color: #ddd !important; color: #000 !important; border: 1px solid #000; font-size: 7.5pt; }
+        .sub-table td { border: 1px solid #000; color: #000; font-size: 7.5pt; }
+        .field-label { font-size: 7pt; }
+        .field-value { font-size: 8.5pt; }
         tr { page-break-inside: avoid; }
     }

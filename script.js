@@ -1,5 +1,7 @@
 // --- CẤU HÌNH KẾT NỐI SERVER ---
 const API_URL = "https://script.google.com/macros/s/AKfycbxKhAJq5IIqJx5zLV0aFEVy7tukiTZss85wGiPr7vsMf1wBsRRRZDkyMtDEU0y9P9ZthA/exec";
+const CACHE_KEY = "PFFP_DATA_CACHE";
+const CACHE_TTL = 60 * 60 * 1000; // 1 giờ (milliseconds)
 // ==========================================================
 // GLOBAL STATE
 // ==========================================================
@@ -267,15 +269,35 @@ function startApp() {
 }
 
 // 1. LOAD DATA
-function loadData() {
+function loadData(forceRefresh = false) {
     var loadingEl = document.getElementById('loading');
     if (loadingEl) loadingEl.style.display = 'flex';
 
+    // KIỂM TRA CACHE
+    if (!forceRefresh) {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+            try {
+                const cacheObj = JSON.parse(cached);
+                const now = Date.now();
+                if (now - cacheObj.timestamp < CACHE_TTL) {
+                    console.log("Loading from cache...");
+                    onDataLoaded(cacheObj.data, true); // true = fromCache
+                    return;
+                }
+            } catch (e) {
+                console.error("Cache Parse Error:", e);
+                localStorage.removeItem(CACHE_KEY);
+            }
+        }
+    }
+
+    console.log("Fetching from server...");
     // GỌI API QUA FETCH
     fetch(API_URL + "?action=getAllData")
         .then(response => response.json())
         .then(data => {
-            onDataLoaded(data);
+            onDataLoaded(data, false);
         })
         .catch(error => {
             showError(error);
@@ -283,17 +305,24 @@ function loadData() {
 }
 
 function refreshData() {
-    loadData();
+    loadData(true); // Bắt buộc tải mới từ server
 }
 
-function onDataLoaded(data) {
+function onDataLoaded(data, fromCache = false) {
     if (!data || data.status === 'error') {
         showError(data ? data.message : 'Unknown error from server');
         return;
     }
     try {
+        if (!fromCache) {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+                timestamp: Date.now(),
+                data: data
+            }));
+        }
         rawData = data;
-        processReferenceData(data);
+        preProcessData(rawData);
+        processReferenceData(rawData);
         filteredData = { farmers: rawData.farmers || [], plots: rawData.plots || [], yearly: rawData.yearly || [] };
         initFilters();
         if (isLoggedIn) {
@@ -468,6 +497,29 @@ function processReferenceData(data) {
     var plotList = data.plots || []; plotList.forEach(p => { if (p.Plot_Id) plotsMap[p.Plot_Id] = { en: p.Plot_Name || p.Plot_Id, vi: p.Plot_Name || p.Plot_Id }; });
 }
 
+function preProcessData(data) {
+    if (data.farmers) {
+        data.farmers.forEach(f => {
+            f._supportedByArr = f['Supported by'] ? String(f['Supported by']).split(',').map(s => s.trim()).filter(Boolean) : [];
+            f._supportedTypesArr = f['Supported Types'] ? String(f['Supported Types']).split(',').map(s => s.trim()).filter(Boolean) : [];
+        });
+    }
+    if (data.plots) {
+        data.plots.forEach(p => {
+            p._shadeTreesBeforeArr = p['Name_Shade_Trees_Before'] ? String(p['Name_Shade_Trees_Before']).split(',').map(s => s.trim()).filter(Boolean) : [];
+            p._farmRegSupportArr = p['Farm registered for support from'] ? String(p['Farm registered for support from']).split(',').map(s => s.trim()).filter(Boolean) : [];
+        });
+    }
+    if (data.yearly) {
+        data.yearly.forEach(y => {
+            y._fertNameArr = y['Name of fertilizer'] ? String(y['Name of fertilizer']).split(',').map(s => s.trim()).filter(Boolean) : [];
+            y._treeSupportByArr = y['Shade_Trees_supported by'] ? String(y['Shade_Trees_supported by']).split(',').map(s => s.trim()).filter(Boolean) : [];
+            y._trainingArr = y['Attending training capacity organized by PFFP'] ? String(y['Attending training capacity organized by PFFP']).split(',').map(s => s.trim()).filter(Boolean) : [];
+            y._speciesArr = y['Shade_Trees_Species'] ? String(y['Shade_Trees_Species']).split(',').map(s => s.trim()).filter(Boolean) : [];
+        });
+    }
+}
+
 function getLabel(id, map) { if (!id) return ""; let lId = String(id).trim(); if (map && map[lId]) return currentLang === 'vi' ? map[lId].vi : map[lId].en; return id; }
 function resolveValue(key, value, tName) { if (!value) return ""; const c = FIELD_MAPPING[tName]; if (!c || !c[key]) return value; const mT = c[key]; let mO = null; if (typeof mT === 'string') { if (mT === 'admin') mO = adminMap; else if (mT === 'drop') mO = dropMap; else if (mT === 'species') mO = speciesMap; else if (mT === 'user') mO = userMap; else if (mT === 'trainingList') mO = trainingListMap; else if (mT === 'farmers') mO = farmersMap; else if (mT === 'plots') mO = plotsMap; } else if (typeof mT === 'object' && mT.map) { let mK = mT.map; if (mK === 'admin') mO = adminMap; else if (mK === 'drop') mO = dropMap; else if (mK === 'species') mO = speciesMap; else if (mK === 'user') mO = userMap; else if (mK === 'trainingList') mO = trainingListMap; } if (!mO) return value; if (typeof mT === 'object' && mT.separator) { return String(value).split(mT.separator).map(p => getLabel(p.trim(), mO)).join(', '); } else { return getLabel(value, mO); } }
 
@@ -604,13 +656,13 @@ function applyFilter() {
             let fManVal = getManageByGroup(f['Manage by']);
             if (fMan !== 'All' && !fMan.includes(fManVal)) return false;
 
-            if (fSp !== 'All') { let s = (f['Supported by'] || "").toString().split(',').map(s => s.trim()).filter(Boolean); if (!(s.length === 0 && fSp.length === 0) && !s.some(i => fSp.includes(i))) return false; }
-            if (fST !== 'All') { let s = (f['Supported Types'] || "").toString().split(',').map(s => s.trim()).filter(Boolean); if (!(s.length === 0 && fST.length === 0) && !s.some(i => fST.includes(i))) return false; }
+            if (fSp !== 'All') { let s = f._supportedByArr; if (!(s.length === 0 && fSp.length === 0) && !s.some(i => fSp.includes(i))) return false; }
+            if (fST !== 'All') { let s = f._supportedTypesArr; if (!(s.length === 0 && fST.length === 0) && !s.some(i => fST.includes(i))) return false; }
             return true;
         });
 
         let fIDs = new Set(filtF.map(f => f['Farmer_ID']));
-        let filtY = (rawData.yearly || []).filter(y => { if (fSpec !== 'All') { let s = (y['Shade_Trees_Species'] || "").toString().split(',').map(s => s.trim()).filter(Boolean); if (fSpec.length === 0 || !s.some(z => fSpec.includes(z))) return false; } return fIDs.has(y['Farmer_ID']); });
+        let filtY = (rawData.yearly || []).filter(y => { if (fSpec !== 'All') { let s = y._speciesArr; if (fSpec.length === 0 || !s.some(z => fSpec.includes(z))) return false; } return fIDs.has(y['Farmer_ID']); });
 
         if (fSpec !== 'All') { let fIDSpec = new Set(filtY.map(y => y['Farmer_ID'])); filtF = filtF.filter(f => fIDSpec.has(f['Farmer_ID'])); fIDs = fIDSpec; }
         let filtP = (rawData.plots || []).filter(p => fIDs.has(p['Farmer_ID']));
@@ -1011,7 +1063,8 @@ function showFarmerDetails(farmerId) {
         'Phone_Number', 'Village_Name', 'Commune_Name',
         'Farmer_Group_Name', 'Cooperative_Name', 'Address',
         'Num_Household_Members', 'Num_Working_Members', 'Socioeconomic Status',
-        'Household Circumstances', 'Total_Coffee_Area', 'Status',
+        'Household Circumstances', 'Total_Coffee_Area', 'Number of coffee farm plots',
+        'Supported by', 'Supported Types', 'Status',
         'Activity', 'Participation Year', 'Staff input'
     ];
 
@@ -1038,9 +1091,13 @@ function showFarmerDetails(farmerId) {
             { k: 'Plot_Name', l: 'Tên Lô' },
             { k: 'Area (ha)', l: 'DT (ha)' },
             { k: 'Location', l: 'Tọa độ' },
-            { k: 'Land use rights certificate?', l: 'GCNQSDĐ' },
-            { k: 'Num_Coffee_Trees', l: 'SL Cây CP' },
+            { k: 'Land use rights certificate?', l: 'Số đỏ?' },
+            { k: 'Border_Natural_Forest', l: 'Giáp rừng?' },
+            { k: 'Num_Coffee_Trees', l: 'Cây CP' },
             { k: 'Coffee_Planted_Year', l: 'Năm trồng' },
+            { k: 'Shade_Trees_supported by', l: 'HT bởi' },
+            { k: 'Num_Shade_Trees_Before', l: 'Cây CB cũ' },
+            { k: 'Number of shade trees', l: 'Cây CB hiện tại' },
             { k: 'Status', l: 'Tình trạng' }
         ];
         html += renderSubTable(relatedPlots, plotCols, 'Plots');
@@ -1055,13 +1112,15 @@ function showFarmerDetails(farmerId) {
         // Định nghĩa cột hiển thị cho bảng Yearly
         const yearCols = [
             { k: 'Year', l: 'Năm' },
-            { k: 'Record_Id', l: 'Mã BG' },
-            { k: 'Annual_Volume_Cherry', l: 'SL Quả tươi' },
-            { k: 'Volume_High_Quality', l: 'SL CLC' },
+            { k: 'Annual_Volume_Cherry', l: 'Quả tươi' },
+            { k: 'Volume_High_Quality', l: 'CLC' },
             { k: 'Total_Coffee_Income', l: 'Thu nhập' },
-            { k: 'Number_Shade_Trees_Planted', l: 'Cây trồng' },
+            { k: 'Number_Shade_Trees_Planted', l: 'Trồng mới' },
             { k: 'Shade_Trees_Died', l: 'Cây chết' },
             { k: 'Attending training capacity organized by PFFP', l: 'Tập huấn' },
+            { k: 'Op6_Activities', l: 'Op6' },
+            { k: 'Cherry sales registered to Slow', l: 'ĐK bán Slow' },
+            { k: 'Cherry sales supplied to Slow', l: 'Thực bán Slow' },
             { k: 'Status', l: 'TT' }
         ];
         html += renderSubTable(relatedYearly, yearCols, 'Yearly_Data');
