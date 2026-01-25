@@ -719,164 +719,100 @@
     @media print {
         @page {
             size: A4 portrait;
-            margin: 10mm;
+            margin: 15mm 10mm;
         }
 
-        /* Ẩn tất cả ngoại trừ Modal */
-        body * {
-            visibility: hidden;
-        }
-
-        #farmerDetailModal,
-        #farmerDetailModal * {
-            visibility: visible;
-        }
-
-        /* Định vị Modal full trang */
-        #farmerDetailModal {
-            position: absolute;
-            left: 0;
-            top: 0;
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            min-height: 100%;
-            background: white;
-            border: none;
-        }
-
-        .modal-dialog {
-            margin: 0 !important;
-            padding: 0 !important;
-            max-width: 100% !important;
-            width: 100% !important;
-        }
-
-        .modal-content {
-            border: none !important;
-            box-shadow: none !important;
-        }
-
-        .modal-header,
-        .modal-footer,
-        .no-print,
-        .btn-close,
-        #modalActions {
+        /* Ẩn mọi thứ trên trang web */
+        body>*:not(#printArea) {
             display: none !important;
         }
 
-        .modal-body {
-            padding: 0 !important;
-            overflow: visible !important;
-        }
-
-        /* Hiện Header/Footer in ấn */
-        .print-header-layout {
-            display: flex !important;
-            border-bottom: 2px solid #2E7D32;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-            align-items: center;
-        }
-
-        .print-logo-col {
-            width: 20%;
-            text-align: left;
-        }
-
-        .print-logo-img {
-            max-height: 70px;
-        }
-
-        .print-text-col {
-            width: 80%;
-            text-align: center;
-        }
-
-        .print-project-name-vi {
-            font-size: 14pt;
-            font-weight: bold;
-            color: #2E7D32;
-            display: block;
-            text-transform: uppercase;
-        }
-
-        .print-project-name-en {
-            font-size: 10pt;
-            font-style: italic;
-            color: #000;
-        }
-
-        .print-main-title {
+        /* Hiện khu vực in riêng */
+        #printArea {
             display: block !important;
-            font-size: 16pt;
-            font-weight: bold;
-            color: #2E7D32;
-            margin: 10px 0;
-            text-align: center;
-            border-bottom: 1px dashed #ccc;
-            padding-bottom: 10px;
+            visibility: visible !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            color: black !important;
         }
 
-        .print-footer-layout {
-            display: flex !important;
-            justify-content: space-between;
-            border-top: 1px solid #000;
-            margin-top: 20px;
-            padding-top: 5px;
-            font-size: 9pt;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-        }
-
-        /* Layout in ấn */
+        /* Đảm bảo grid 3 cột trong PDF */
         .detail-grid-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            /* 3 cột cứng */
-            gap: 15px;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr 1fr !important;
+            gap: 15px !important;
             page-break-inside: avoid;
         }
 
         .section-title {
             background-color: transparent !important;
-            color: #000 !important;
-            border-bottom: 2px solid #000 !important;
-            border-left: none !important;
-            padding-left: 0 !important;
+            color: #1B5E20 !important;
+            border-bottom: 2px solid #2E7D32 !important;
+            border-left: 10px solid #2E7D32 !important;
+            margin-top: 30px !important;
             page-break-after: avoid;
         }
 
-        .sub-table th {
-            background-color: #ddd !important;
-            color: #000 !important;
-            border: 1px solid #000;
-            font-size: 7.5pt;
-        }
-
-        .sub-table td {
-            border: 1px solid #000;
-            color: #000;
-            font-size: 7.5pt;
+        .child-card-wrapper {
+            page-break-inside: avoid;
+            margin-bottom: 25px !important;
+            border: 1px solid #ddd !important;
+            padding: 15px !important;
         }
 
         .field-label {
-            font-size: 7pt;
+            font-size: 8pt !important;
+            color: #666 !important;
         }
 
         .field-value {
-            font-size: 8.5pt;
+            font-size: 10pt !important;
+            font-weight: bold !important;
         }
 
-        .child-card-wrapper {
-            margin-bottom: 20px !important;
-            border: 1px solid #eee !important;
-            page-break-inside: avoid;
+        /* Header in ấn */
+        .print-header-layout {
+            display: flex !important;
+            align-items: center;
+            border-bottom: 2px solid #2E7D32;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
         }
 
-        tr {
-            page-break-inside: avoid;
+        .print-logo-col {
+            width: 15%;
+        }
+
+        .print-logo-img {
+            max-height: 80px;
+        }
+
+        .print-text-col {
+            width: 85%;
+            text-align: center;
+        }
+
+        .print-project-name-vi {
+            font-size: 16pt !important;
+            font-weight: bold;
+            color: #2E7D32;
+            display: block;
+        }
+
+        .print-project-name-en {
+            font-size: 11pt !important;
+            font-style: italic;
+            color: #444;
+        }
+
+        .print-main-title {
+            display: block !important;
+            font-size: 18pt !important;
+            font-weight: bold;
+            color: #2E7D32;
+            text-align: center;
+            margin: 20px 0 !important;
         }
     }

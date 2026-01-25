@@ -1187,9 +1187,37 @@ function renderChildGrid(data, type) {
 // Giữ lại hàm cũ nếu có chỗ khác gọi (nhưng trong code hiện tại chỉ thấy dùng ở showFarmerDetails)
 function renderSubTable(data, columns, type) { return renderChildGrid(data, type); }
 
-// --- CHỨC NĂNG: IN PDF ---
+// --- CHỨC NĂNG: IN PDF (Sửa lại cho ổn định) ---
 function printFarmerDetail() {
-    window.print();
+    const detailContent = document.getElementById('detailContent').innerHTML;
+    const printArea = document.getElementById('printArea');
+
+    if (printArea) {
+        // Copy nội dung vào khu vực in riêng
+        printArea.innerHTML = `
+            <div class="print-header-layout">
+                <div class="print-logo-col">
+                    <img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png" class="print-logo-img">
+                </div>
+                <div class="print-text-col">
+                    <span class="print-project-name-vi">SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ NHIÊN</span>
+                    <span class="print-project-name-en">PROSPEROUS FARMERS AND FORESTS PARTNERSHIP</span>
+                </div>
+            </div>
+            ${detailContent}
+            <div id="printFooterContentInArea">
+                ${document.getElementById('printFooterContent').innerHTML}
+            </div>
+        `;
+
+        // Gọi lệnh in
+        window.print();
+
+        // Xóa nội dung sau khi in (tùy chọn)
+        // printArea.innerHTML = '';
+    } else {
+        window.print();
+    }
 }
 
 // --- CHỨC NĂNG: XÓA CHUNG ---
@@ -1229,6 +1257,53 @@ async function deleteItem(type, id) {
 // Giữ lại tên cũ để đảm bảo tương thích nếu có chỗ gọi trực tiếp
 async function deleteFarmer(id) { deleteItem('Farmers', id); }
 
+// --- HELPER: TẠO Ô NHẬP LIỆU THÔNG MINH (CHO EDIT FORM) ---
+function generateInputField(key, value, type) {
+    const mapping = FIELD_MAPPING[type] ? FIELD_MAPPING[type][key] : null;
+    let labelKey = FIELD_LABELS[type][key] || key;
+    let label = translations[currentLang][labelKey] || labelKey;
+    let html = `<div class="col-md-6 col-lg-4 mb-3">
+                    <label class="form-label-custom">${label}</label>`;
+
+    // 1. Kiểm tra Mapping (Enum / EnumList)
+    if (mapping) {
+        let mapName = (typeof mapping === 'string') ? mapping : mapping.map;
+        let isMulti = (typeof mapping === 'object' && mapping.separator);
+        let mapObj = null;
+
+        if (mapName === 'admin') mapObj = adminMap;
+        else if (mapName === 'drop') mapObj = dropMap;
+        else if (mapName === 'species') mapObj = speciesMap;
+        else if (mapName === 'user') mapObj = userMap;
+        else if (mapName === 'trainingList') mapObj = trainingListMap;
+        else if (mapName === 'farmers') mapObj = farmersMap;
+        else if (mapName === 'plots') mapObj = plotsMap;
+
+        if (mapObj) {
+            // Render Dropdown / Multiselect
+            html += `<select class="form-select form-select-sm select2-generic" name="${key}" ${isMulti ? 'multiple' : ''}>`;
+            if (!isMulti) html += `<option value="">-- Chọn --</option>`;
+
+            let selectedVals = isMulti ? String(value || '').split(mapping.separator).map(s => s.trim()) : [String(value || '').trim()];
+
+            Object.keys(mapObj).forEach(id => {
+                let lbl = (currentLang === 'vi' ? mapObj[id].vi : mapObj[id].en) || id;
+                let isSelected = selectedVals.includes(id) ? 'selected' : '';
+                html += `<option value="${id}" ${isSelected}>${lbl}</option>`;
+            });
+
+            html += `</select>`;
+            html += `</div>`;
+            return html;
+        }
+    }
+
+    // 2. Mặc định là Text input
+    html += `<input type="text" class="form-control form-control-sm" name="${key}" value="${escapeHtml(value || '')}">`;
+    html += `</div>`;
+    return html;
+}
+
 // --- CHỨC NĂNG: SỬA CHUNG (Full Fields) ---
 function openEditForm(type, id) {
     // Đóng modal chi tiết
@@ -1253,22 +1328,7 @@ function openEditForm(type, id) {
     const labels = FIELD_LABELS[type] || {};
 
     Object.keys(labels).forEach(key => {
-        let labelKey = labels[key];
-        let label = translations[currentLang][labelKey] || labelKey;
-        let val = item[key] || '';
-
-        // Xác định loại input (sơ bộ)
-        let inputType = 'text';
-        if (!isNaN(parseFloat(val)) && isFinite(val) && String(val).indexOf('.') === -1) {
-            // Có vẻ là số? Nhưng nhiều khi là ID card nên cứ để text cho an toàn hoặc number nếu cần
-            // Ở đây mình ưu tiên text để tránh lỗi định dạng appsheet
-        }
-
-        fieldsHtml += `
-            <div class="col-md-6 col-lg-4">
-                <label class="form-label-custom">${label}</label>
-                <input type="${inputType}" class="form-control form-control-sm" name="${key}" value="${escapeHtml(val)}">
-            </div>`;
+        fieldsHtml += generateInputField(key, item[key], type);
     });
 
     // Thêm cảnh báo
@@ -1294,10 +1354,18 @@ function saveData() {
     if (formType === 'Plots') formData['Plot_Id'] = formId;
     if (formType === 'Yearly_Data') formData['Record_Id'] = formId;
 
-    // Lấy dữ liệu từ các ô input
-    $('#genericForm input').each(function () {
+    // Lấy dữ liệu từ các ô input và select
+    $('#genericForm input, #genericForm select').each(function () {
         let name = $(this).attr('name');
-        if (name) formData[name] = $(this).val();
+        if (name) {
+            if ($(this).is('select') && $(this).prop('multiple')) {
+                // Xử lý EnumList (ghép bằng dấu phẩy)
+                let vals = $(this).val() || [];
+                formData[name] = vals.join(', ');
+            } else {
+                formData[name] = $(this).val();
+            }
+        }
     });
 
     $('#loading').show();
@@ -1846,4 +1914,16 @@ function updatePendingCount() {
     } else {
         console.error("LỖI: Không tìm thấy thẻ HTML có id='pendingCountBadge'. Kiểm tra lại file index.html");
     }
+}
+
+function escapeHtml(text) {
+    if (!text) return "";
+    var map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, function (m) { return map[m]; });
 }
