@@ -1081,49 +1081,20 @@ function showFarmerDetails(farmerId) {
     });
     html += `</div>`; // Kết thúc grid
 
-    // === PHẦN 2: DANH SÁCH LÔ ĐẤT (Bảng) ===
+    // === PHẦN 2: DANH SÁCH LÔ ĐẤT (GRID) ===
     html += `<div class="section-title"><i class="fas fa-map"></i> II. DANH SÁCH LÔ ĐẤT (PLOTS) - [Tổng: ${relatedPlots.length} lô]</div>`;
 
     if (relatedPlots.length > 0) {
-        // Định nghĩa cột hiển thị cho bảng Plots
-        const plotCols = [
-            { k: 'Plot_Id', l: 'Mã Lô' },
-            { k: 'Plot_Name', l: 'Tên Lô' },
-            { k: 'Area (ha)', l: 'DT (ha)' },
-            { k: 'Location', l: 'Tọa độ' },
-            { k: 'Land use rights certificate?', l: 'Số đỏ?' },
-            { k: 'Border_Natural_Forest', l: 'Giáp rừng?' },
-            { k: 'Num_Coffee_Trees', l: 'Cây CP' },
-            { k: 'Coffee_Planted_Year', l: 'Năm trồng' },
-            { k: 'Shade_Trees_supported by', l: 'HT bởi' },
-            { k: 'Num_Shade_Trees_Before', l: 'Cây CB cũ' },
-            { k: 'Number of shade trees', l: 'Cây CB hiện tại' },
-            { k: 'Status', l: 'Tình trạng' }
-        ];
-        html += renderSubTable(relatedPlots, plotCols, 'Plots');
+        html += renderChildGrid(relatedPlots, 'Plots');
     } else {
         html += `<div class="text-muted fst-italic p-2">Không có dữ liệu lô đất.</div>`;
     }
 
-    // === PHẦN 3: DỮ LIỆU HÀNG NĂM (Bảng) ===
+    // === PHẦN 3: DỮ LIỆU HÀNG NĂM (GRID) ===
     html += `<div class="section-title"><i class="fas fa-history"></i> III. DỮ LIỆU HÀNG NĂM (YEARLY DATA)</div>`;
 
     if (relatedYearly.length > 0) {
-        // Định nghĩa cột hiển thị cho bảng Yearly
-        const yearCols = [
-            { k: 'Year', l: 'Năm' },
-            { k: 'Annual_Volume_Cherry', l: 'Quả tươi' },
-            { k: 'Volume_High_Quality', l: 'CLC' },
-            { k: 'Total_Coffee_Income', l: 'Thu nhập' },
-            { k: 'Number_Shade_Trees_Planted', l: 'Trồng mới' },
-            { k: 'Shade_Trees_Died', l: 'Cây chết' },
-            { k: 'Attending training capacity organized by PFFP', l: 'Tập huấn' },
-            { k: 'Op6_Activities', l: 'Op6' },
-            { k: 'Cherry sales registered to Slow', l: 'ĐK bán Slow' },
-            { k: 'Cherry sales supplied to Slow', l: 'Thực bán Slow' },
-            { k: 'Status', l: 'TT' }
-        ];
-        html += renderSubTable(relatedYearly, yearCols, 'Yearly_Data');
+        html += renderChildGrid(relatedYearly, 'Yearly_Data');
     } else {
         html += `<div class="text-muted fst-italic p-2">Không có dữ liệu hàng năm.</div>`;
     }
@@ -1178,35 +1149,51 @@ function showFarmerDetails(farmerId) {
     modal.show();
 }
 
-// --- HÀM VẼ BẢNG CON (Sub-table) ---
-function renderSubTable(data, columns, type) {
-    let h = `<table class="sub-table"><thead><tr>`;
-    h += `<th style="width: 40px;">TT</th>`;
-    columns.forEach(c => { h += `<th>${c.l}</th>`; });
-    h += `</tr></thead><tbody>`;
+// --- HÀM VẼ LƯỚI BẢN GHI CON (Chi tiết cho Plot/Yearly) ---
+function renderChildGrid(data, type) {
+    let html = '';
+    const labels = FIELD_LABELS[type] || {};
+    const idKey = (type === 'Plots') ? 'Plot_Id' : 'Record_Id';
 
-    data.forEach((row, idx) => {
-        h += `<tr>`;
-        h += `<td class="text-center">${idx + 1}</td>`;
-        columns.forEach(c => {
-            let rawVal = row[c.k];
-            let val = resolveValue(c.k, rawVal, type);
-            let alignClass = (!isNaN(parseFloat(rawVal)) && isFinite(rawVal) && String(rawVal).trim() !== '') ? 'text-center' : 'text-start';
-            h += `<td class="${alignClass}">${val || ''}</td>`;
+    data.forEach((item, idx) => {
+        html += `
+            <div class="child-card-wrapper mb-4 p-3 border rounded bg-white shadow-sm position-relative">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                    <div class="fw-bold text-success"><i class="fas fa-tag"></i> ${idx + 1}. ${item[idKey] || ''}</div>
+                    <div class="no-print d-flex gap-2">
+                        <button class="btn btn-sm btn-warning" onclick="openEditForm('${type}', '${item[idKey]}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', '${item[idKey]}')"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+                <div class="detail-grid-container">`;
+
+        Object.keys(labels).forEach(key => {
+            let labelKey = labels[key];
+            let label = translations[currentLang][labelKey] || labelKey;
+            let val = resolveValue(key, item[key], type);
+
+            html += `
+                    <div class="detail-item">
+                        <div class="field-label">${label}</div>
+                        <div class="field-value">${val || '-'}</div>
+                    </div>`;
         });
-        h += `</tr>`;
+
+        html += `</div></div>`;
     });
-    h += `</tbody></table>`;
-    return h;
+    return html;
 }
+
+// Giữ lại hàm cũ nếu có chỗ khác gọi (nhưng trong code hiện tại chỉ thấy dùng ở showFarmerDetails)
+function renderSubTable(data, columns, type) { return renderChildGrid(data, type); }
 
 // --- CHỨC NĂNG: IN PDF ---
 function printFarmerDetail() {
     window.print();
 }
 
-// --- CHỨC NĂNG: XÓA ---
-async function deleteFarmer(id) {
+// --- CHỨC NĂNG: XÓA CHUNG ---
+async function deleteItem(type, id) {
     const c = await showCustomConfirm(`${translations[currentLang].confirmDelete} (${id})?`, 'delete');
     if (!c) return;
 
@@ -1222,7 +1209,7 @@ async function deleteFarmer(id) {
         method: 'POST',
         body: JSON.stringify({
             action: 'deleteData',
-            sheetName: 'Farmers',
+            sheetName: type,
             id: id
         })
     })
@@ -1239,49 +1226,63 @@ async function deleteFarmer(id) {
         .catch(err => showError(err));
 }
 
-// --- CHỨC NĂNG: SỬA ---
-function editFarmer(id) {
+// Giữ lại tên cũ để đảm bảo tương thích nếu có chỗ gọi trực tiếp
+async function deleteFarmer(id) { deleteItem('Farmers', id); }
+
+// --- CHỨC NĂNG: SỬA CHUNG (Full Fields) ---
+function openEditForm(type, id) {
     // Đóng modal chi tiết
     const detailModal = bootstrap.Modal.getInstance(document.getElementById('farmerDetailModal'));
     if (detailModal) detailModal.hide();
 
-    let farmer = rawData.farmers.find(f => String(f.Farmer_ID) === String(id));
-    if (!farmer) return;
+    let dataList = (type === 'Farmers') ? rawData.farmers : (type === 'Plots' ? rawData.plots : rawData.yearly);
+    let idKey = (type === 'Farmers') ? 'Farmer_ID' : (type === 'Plots' ? 'Plot_Id' : 'Record_Id');
+    let item = dataList.find(i => String(i[idKey]) === String(id));
+    if (!item) return;
 
     // Reset form sửa chung
-    $('#editFormTitle').text(`${translations[currentLang].editPrefix}: ${farmer.Full_Name}`);
+    let titlePrefix = translations[currentLang].editPrefix || "Sửa";
+    $('#editFormTitle').text(`${titlePrefix}: ${item.Full_Name || item.Plot_Name || item.Record_Id || id}`);
     $('#genericForm').trigger("reset");
     $('#formFields').empty();
-    $('#formType').val('Farmers'); // Báo cho server biết đang sửa bảng Farmers
+    $('#formType').val(type);
     $('#formId').val(id);
 
-    // Tạo các trường input (Bạn có thể thêm bớt trường ở đây)
-    const editableFields = [
-        { k: 'Full_Name', l: 'Họ tên', t: 'text' },
-        { k: 'Phone_Number', l: 'SĐT', t: 'text' },
-        { k: 'Total_Coffee_Area', l: 'Tổng DT (ha)', t: 'number' },
-        { k: 'Address', l: 'Địa chỉ', t: 'text' },
-        { k: 'Status', l: 'Trạng thái (Act/InA)', t: 'text' }
-    ];
-
+    // Tự động tạo các trường input từ FIELD_LABELS
     let fieldsHtml = '';
-    editableFields.forEach(f => {
+    const labels = FIELD_LABELS[type] || {};
+
+    Object.keys(labels).forEach(key => {
+        let labelKey = labels[key];
+        let label = translations[currentLang][labelKey] || labelKey;
+        let val = item[key] || '';
+
+        // Xác định loại input (sơ bộ)
+        let inputType = 'text';
+        if (!isNaN(parseFloat(val)) && isFinite(val) && String(val).indexOf('.') === -1) {
+            // Có vẻ là số? Nhưng nhiều khi là ID card nên cứ để text cho an toàn hoặc number nếu cần
+            // Ở đây mình ưu tiên text để tránh lỗi định dạng appsheet
+        }
+
         fieldsHtml += `
-                <div class="col-md-6">
-                    <label class="form-label-custom">${f.l}</label>
-                    <input type="${f.t}" class="form-control form-control-sm" name="${f.k}" value="${farmer[f.k] || ''}">
-                </div>
-             `;
+            <div class="col-md-6 col-lg-4">
+                <label class="form-label-custom">${label}</label>
+                <input type="${inputType}" class="form-control form-control-sm" name="${key}" value="${escapeHtml(val)}">
+            </div>`;
     });
 
     // Thêm cảnh báo
-    fieldsHtml += `<div class="col-12 text-danger small fst-italic mt-2">* Lưu ý: Đây là tính năng chỉnh sửa nhanh. Hãy kiểm tra kỹ trước khi Lưu.</div>`;
+    fieldsHtml += `<div class="col-12 text-danger small fst-italic mt-2">* Lưu ý: Chế độ chỉnh sửa toàn bộ. Hãy kiểm tra kỹ tất cả các trường trước khi Lưu.</div>`;
 
     $('#formFields').html(fieldsHtml);
 
     const editModal = new bootstrap.Modal(document.getElementById('editFormModal'));
     editModal.show();
 }
+
+function editFarmer(id) { openEditForm('Farmers', id); }
+function editPlot(id) { openEditForm('Plots', id); }
+function editYearly(id) { openEditForm('Yearly_Data', id); }
 
 // --- HÀM LƯU DỮ LIỆU (Đảm bảo hàm này có trong code) ---
 function saveData() {
@@ -1290,6 +1291,8 @@ function saveData() {
 
     let formData = {};
     if (formType === 'Farmers') formData['Farmer_ID'] = formId;
+    if (formType === 'Plots') formData['Plot_Id'] = formId;
+    if (formType === 'Yearly_Data') formData['Record_Id'] = formId;
 
     // Lấy dữ liệu từ các ô input
     $('#genericForm input').each(function () {
@@ -1312,7 +1315,8 @@ function saveData() {
         .then(res => {
             $('#loading').fadeOut();
             if (res.status === 'success') {
-                bootstrap.Modal.getInstance(document.getElementById('editFormModal')).hide();
+                const modalInstance = bootstrap.Modal.getInstance(document.getElementById('editFormModal'));
+                if (modalInstance) modalInstance.hide();
                 refreshData();
                 alert("Cập nhật thành công!");
             } else {
@@ -1360,10 +1364,10 @@ function drawTables(farmers, plots, yearly) {
     let farmerNameMap = {};
     (rawData.farmers || []).forEach(f => farmerNameMap[f.Farmer_ID] = f.Full_Name);
     let farmersData = farmers.map((f, i) => [i + 1, resolveValue('Participation Year', f['Participation Year'], 'Farmers'), f['Farmer_ID'] || '', f['Full_Name'] || '', f['Year_Of_Birth'] || '', resolveValue('Gender', f['Gender'], 'Farmers'), f['Phone_Number'] || '', resolveValue('Farmer_Group_Name', f['Farmer_Group_Name'], 'Farmers'), resolveValue('Cooperative_Name', f['Cooperative_Name'], 'Farmers'), resolveValue('Village_Name', f['Village_Name'], 'Farmers'), resolveValue('Commune_Name', f['Commune_Name'], 'Farmers'), f['Address'] || '', f['ID card'] || '', resolveValue('Ethnicity', f['Ethnicity'], 'Farmers'), resolveValue('Socioeconomic Status', f['Socioeconomic Status'], 'Farmers'), resolveValue('Household Circumstances', f['Household Circumstances'], 'Farmers'), f['Num_Household_Members'] || '', f['Num_Working_Members'] || '', f['Total_Coffee_Area'] || '', f['Number of coffee farm plots'] || '', resolveValue('Supported by', f['Supported by'], 'Farmers'), resolveValue('Supported Types', f['Supported Types'], 'Farmers'), f['Number Farm registered for support from'] ||
-        '', f['Total Area registered'] || '', resolveValue('Staff input', f['Staff input'], 'Farmers'), formatStatus(f['Status']), formatActivity(f['Activity']), formatDate(f['Date']), formatDate(f['Update'])]);
+        '', f['Total Area registered'] || '', resolveValue('Staff input', f['Staff input'], 'Farmers')]);
     updateDataTable('mainTable', dtFarmers, farmersData, (instance) => { dtFarmers = instance; });
     let plotsData = plots.map((p, i) => [i + 1, p['Plot_Id'] || '', p['Farmer_ID'] || '', farmerNameMap[p['Farmer_ID']] || '', p['Plot_Name'] || '', p['Area (ha)'] || 0, resolveValue('Land use rights certificate?', p['Land use rights certificate?'], 'Plots'), resolveValue('Border_Natural_Forest', p['Border_Natural_Forest'], 'Plots'), resolveValue('Receive seedlings from', p['Receive seedlings from'], 'Plots'), resolveValue('Place name', p['Place name'], 'Plots'), p['Location'] || '', p['Num_Shade_Trees_Before'] || 0, resolveValue('Name_Shade_Trees_Before', p['Name_Shade_Trees_Before'], 'Plots'), resolveValue('Farm registered for support from', p['Farm registered for support from'], 'Plots'), p['Num_Coffee_Trees'] || 0, resolveValue('Coffee_Planted_Year', p['Coffee_Planted_Year'], 'Plots'), p['Notes for details (Optional)'] || '', p['Number of shade trees'] || 0, p['Number of shade tree species'] || 0, p['Map Sheet'] || '', p['Sub-mapsheet']
-        || '', formatStatus(p['Status'] || ''), formatActivity(p['Activity'] || ''), formatDate(p['Update'])]);
+        || '']);
     updateDataTable('plotsTable', dtPlots, plotsData, (instance) => { dtPlots = instance; });
     let yearlyData = yearly.map((y, i) => {
         let planted = parseFloat(y['Number_Shade_Trees_Planted']) || 0; let died = parseFloat(y['Shade_Trees_Died']) || 0; let survival = planted > 0 ? ((planted - died) / planted * 100).toFixed(1) + '%' : '0.0%'; return [i + 1, y['Farmer_ID'] || '', farmerNameMap[y['Farmer_ID']] || '', y['Record_Id'] || '', resolveValue('Year', y['Year'], 'Yearly_Data'), y['Annual_Volume_Cherry'] || 0, y['Volume_High_Quality'] || 0, y['Total_Coffee_Income'] || 0, resolveValue('Fertilizers_Applied', y['Fertilizers_Applied'], 'Yearly_Data'), resolveValue('Name of fertilizer', y['Name of fertilizer'], 'Yearly_Data'), y['Fertilizer volume'] || '', y['Fertilizer cost'] || '', resolveValue('Pesticides_Applied', y['Pesticides_Applied'], 'Yearly_Data'), resolveValue('Name of Pesticides', y['Name of Pesticides'], 'Yearly_Data'), y['Pesticides volume'] || '', y['Pesticides cost'] || '', resolveValue('Herbicides_Applied',
@@ -1375,7 +1379,7 @@ function drawTables(farmers, plots, yearly) {
         '', resolveValue('Soil_Test_Support', y['Soil_Test_Support'], 'Yearly_Data'), resolveValue('Attending training capacity organized by PFFP', y['Attending training capacity organized by PFFP'], 'Yearly_Data'), y['Op6_Activities'] ||
         '', y['Cherry sales registered to Slow'] || '', y['Cherry sales supplied to Slow'] ||
         '', y['Revenue from cherry sales to Slow (VND)'] || '', y['Cherry bought by Slow via processor'] ||
-        '', formatStatus(y['Status'] || ''), formatActivity(y['Activity'] || ''), formatDate(y['Update'])];
+        ''];
     }); updateDataTable('yearlyTable', dtYearly, yearlyData, (instance) => { dtYearly = instance; });
 }
 function updateDataTable(t, i, d, c) { if (i) { i.clear().rows.add(d).draw(); } else { let n = $('#' + t).DataTable({ data: d, pageLength: 10, language: { search: "Tìm kiếm:", paginate: { next: ">>", previous: "<<" }, info: "_START_ - _END_ / _TOTAL_" }, deferRender: true, autoWidth: false }); c(n); } }
