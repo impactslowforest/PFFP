@@ -775,36 +775,51 @@
         /* Header in ấn */
         .print-header-layout {
             display: flex !important;
-            align-items: center;
-            border-bottom: 2px solid #2E7D32;
-            padding-bottom: 15px;
-            margin-bottom: 20px;
+            align-items: center !important;
+            justify-content: space-between !important;
+            border-bottom: 2px solid #2E7D32 !important;
+            padding-bottom: 15px !important;
+            margin-bottom: 20px !important;
+            gap: 20px !important;
         }
 
         .print-logo-col {
-            width: 15%;
+            width: 25% !important;
+            text-align: left !important;
         }
 
         .print-logo-img {
-            max-height: 80px;
+            max-height: 80px !important;
+            width: auto !important;
+            object-fit: contain !important;
         }
 
         .print-text-col {
-            width: 85%;
-            text-align: center;
+            width: 75% !important;
+            text-align: right !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
         }
 
         .print-project-name-vi {
-            font-size: 16pt !important;
-            font-weight: bold;
-            color: #2E7D32;
-            display: block;
+            font-size: 15pt !important;
+            font-weight: bold !important;
+            color: #2E7D32 !important;
+            margin-bottom: 5px !important;
+            line-height: 1.2 !important;
         }
 
         .print-project-name-en {
-            font-size: 11pt !important;
-            font-style: italic;
-            color: #444;
+            font-size: 10pt !important;
+            font-style: italic !important;
+            color: #444 !important;
+            line-height: 1.2 !important;
+        }
+
+        .no-print {
+            display: none !important;
+            visibility: hidden !important;
         }
 
         .print-main-title {

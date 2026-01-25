@@ -1161,8 +1161,8 @@ function renderChildGrid(data, type) {
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                     <div class="fw-bold text-success"><i class="fas fa-tag"></i> ${idx + 1}. ${item[idKey] || ''}</div>
                     <div class="no-print d-flex gap-2">
-                        <button class="btn btn-sm btn-warning" onclick="openEditForm('${type}', '${item[idKey]}')"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteItem('${type}', '${item[idKey]}')"><i class="fas fa-trash"></i></button>
+                        <button class="btn btn-sm btn-warning no-print" onclick="openEditForm('${type}', '${item[idKey]}')"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-sm btn-danger no-print" onclick="deleteItem('${type}', '${item[idKey]}')"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
                 <div class="detail-grid-container">`;
@@ -1200,12 +1200,14 @@ function printFarmerDetail() {
                     <img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png" class="print-logo-img">
                 </div>
                 <div class="print-text-col">
-                    <span class="print-project-name-vi">SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ NHIÊN</span>
-                    <span class="print-project-name-en">PROSPEROUS FARMERS AND FORESTS PARTNERSHIP</span>
+                    <div class="print-project-name-vi">SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ NHIÊN</div>
+                    <div class="print-project-name-en">PROSPEROUS FARMERS AND FORESTS PARTNERSHIP</div>
                 </div>
             </div>
-            ${detailContent}
-            <div id="printFooterContentInArea">
+            <div class="print-content-body">
+                ${detailContent}
+            </div>
+            <div id="printFooterContentInArea" class="mt-4">
                 ${document.getElementById('printFooterContent').innerHTML}
             </div>
         `;
@@ -1286,7 +1288,17 @@ function generateInputField(key, value, type) {
 
             let selectedVals = isMulti ? String(value || '').split(mapping.separator).map(s => s.trim()) : [String(value || '').trim()];
 
-            Object.keys(mapObj).forEach(id => {
+            // --- LỌC THEO CONDITION (NẾU CÓ) ---
+            let keys = Object.keys(mapObj);
+            if (mapping.condition) {
+                keys = keys.filter(id => {
+                    const item = mapObj[id];
+                    // Kiểm tra condition trong object của map (adminMap, dropMap thường có condition)
+                    return item && item.condition === mapping.condition;
+                });
+            }
+
+            keys.forEach(id => {
                 let lbl = (currentLang === 'vi' ? mapObj[id].vi : mapObj[id].en) || id;
                 let isSelected = selectedVals.includes(id) ? 'selected' : '';
                 html += `<option value="${id}" ${isSelected}>${lbl}</option>`;
