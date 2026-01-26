@@ -1048,12 +1048,13 @@ function showFarmerDetails(farmerId) {
     // --- XÂY DỰNG HTML CHI TIẾT ---
     let html = `
             <div class="print-main-title">
-                HỒ SƠ NÔNG HỘ: ${farmer.Full_Name || ''} (${farmer.Farmer_ID})
+                ${currentLang === 'vi' ? 'HỒ SƠ NÔNG HỘ' : 'FARMER PROFILE'}: ${farmer.Full_Name || ''} (${farmer.Farmer_ID})
             </div>
         `;
 
     // === PHẦN 1: THÔNG TIN HỘ DÂN (Bố cục 3 cột) ===
-    html += `<div class="section-title"><i class="fas fa-user-circle"></i> I. THÔNG TIN HỘ DÂN (FARMER INFO)</div>`;
+    let section1Title = currentLang === 'vi' ? 'I. THÔNG TIN HỘ DÂN' : 'I. FARMER INFO';
+    html += `<div class="section-title"><i class="fas fa-user-circle"></i> ${section1Title}</div>`;
     html += `<div class="detail-grid-container">`;
 
     // Danh sách các trường cần hiển thị theo thứ tự
@@ -1064,8 +1065,7 @@ function showFarmerDetails(farmerId) {
         'Farmer_Group_Name', 'Cooperative_Name', 'Address',
         'Num_Household_Members', 'Num_Working_Members', 'Socioeconomic Status',
         'Household Circumstances', 'Total_Coffee_Area', 'Number of coffee farm plots',
-        'Supported by', 'Supported Types', 'Status',
-        'Activity', 'Participation Year', 'Staff input'
+        'Supported by', 'Supported Types', 'Participation Year', 'Staff input'
     ];
 
     farmerFields.forEach(key => {
@@ -1082,7 +1082,8 @@ function showFarmerDetails(farmerId) {
     html += `</div>`; // Kết thúc grid
 
     // === PHẦN 2: DANH SÁCH LÔ ĐẤT (GRID) ===
-    html += `<div class="section-title"><i class="fas fa-map"></i> II. DANH SÁCH LÔ ĐẤT (PLOTS) - [Tổng: ${relatedPlots.length} lô]</div>`;
+    let section2Title = currentLang === 'vi' ? `II. DANH SÁCH LÔ ĐẤT - [Tổng: ${relatedPlots.length} lô]` : `II. PLOTS LIST - [Total: ${relatedPlots.length} plots]`;
+    html += `<div class="section-title"><i class="fas fa-map"></i> ${section2Title}</div>`;
 
     if (relatedPlots.length > 0) {
         html += renderChildGrid(relatedPlots, 'Plots');
@@ -1091,7 +1092,8 @@ function showFarmerDetails(farmerId) {
     }
 
     // === PHẦN 3: DỮ LIỆU HÀNG NĂM (GRID) ===
-    html += `<div class="section-title"><i class="fas fa-history"></i> III. DỮ LIỆU HÀNG NĂM (YEARLY DATA)</div>`;
+    let section3Title = currentLang === 'vi' ? 'III. DỮ LIỆU HÀNG NĂM' : 'III. YEARLY DATA';
+    html += `<div class="section-title"><i class="fas fa-history"></i> ${section3Title}</div>`;
 
     if (relatedYearly.length > 0) {
         html += renderChildGrid(relatedYearly, 'Yearly_Data');
@@ -1168,6 +1170,7 @@ function renderChildGrid(data, type) {
                 <div class="detail-grid-container">`;
 
         Object.keys(labels).forEach(key => {
+            if (key === 'Status' || key === 'Activity') return; // Skip in View/PDF
             let labelKey = labels[key];
             let label = translations[currentLang][labelKey] || labelKey;
             let val = resolveValue(key, item[key], type);

@@ -774,47 +774,48 @@
 
         /* Header in ấn */
         .print-header-layout {
-            display: flex !important;
+            display: grid !important;
+            grid-template-columns: 80px 1fr 80px !important;
+            /* Hai cột biên để giữ trung tâm */
             align-items: center !important;
-            justify-content: space-between !important;
             border-bottom: 2px solid #2E7D32 !important;
             padding-bottom: 15px !important;
             margin-bottom: 20px !important;
-            gap: 20px !important;
         }
 
         .print-logo-col {
-            width: 25% !important;
+            grid-column: 1 !important;
             text-align: left !important;
         }
 
         .print-logo-img {
-            max-height: 80px !important;
+            max-height: 50px !important;
             width: auto !important;
             object-fit: contain !important;
         }
 
         .print-text-col {
-            width: 75% !important;
-            text-align: right !important;
+            grid-column: 2 !important;
+            width: 100% !important;
+            text-align: center !important;
             display: flex !important;
             flex-direction: column !important;
             justify-content: center !important;
         }
 
         .print-project-name-vi {
-            font-size: 15pt !important;
+            font-size: 16pt !important;
             font-weight: bold !important;
             color: #2E7D32 !important;
-            margin-bottom: 5px !important;
-            line-height: 1.2 !important;
+            margin-bottom: 3px !important;
+            line-height: 1.1 !important;
         }
 
         .print-project-name-en {
-            font-size: 10pt !important;
+            font-size: 9pt !important;
             font-style: italic !important;
             color: #444 !important;
-            line-height: 1.2 !important;
+            line-height: 1.1 !important;
         }
 
         .no-print {
