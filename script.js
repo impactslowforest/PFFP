@@ -1272,7 +1272,7 @@ function printFarmerDetail() {
         printArea.innerHTML = `
             <div class="print-header-layout">
                 <div class="print-logo-col">
-                    <img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png" style="display: block; margin: 0 auto; max-width: 100%;">
+                    <img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png" class="print-logo-img">
                 </div>
                 <div class="print-text-col">
                     <div class="print-project-name-vi">SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ NHIÊN</div>
