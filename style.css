@@ -765,7 +765,7 @@
         .field-label {
             font-size: 8pt !important;
             color: #666 !important;
-            text-align: right !important;
+            text-align: left !important;
             display: block !important;
             width: 100% !important;
         }
@@ -773,7 +773,7 @@
         .field-value {
             font-size: 10pt !important;
             font-weight: bold !important;
-            text-align: left !important;
+            text-align: right !important;
             display: block !important;
             width: 100% !important;
         }
