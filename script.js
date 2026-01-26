@@ -179,8 +179,8 @@ const translations = {
 const EXPORT_HEADERS = translations;
 const FIELD_LABELS = {
     Farmers: { 'Full_Name': 'thName', 'Farmer_ID': 'thFarmerID', 'Year_Of_Birth': 'thYOB', 'Gender': 'thGender', 'Phone_Number': 'thPhone', 'Farmer_Group_Name': 'thGroup', 'Cooperative_Name': 'thCoop', 'Village_Name': 'thVillage', 'Commune_Name': 'thCommune', 'Address': 'thAddress', 'ID card': 'thIDCard', 'Ethnicity': 'thEthnicity', 'Socioeconomic Status': 'thEcoStatus', 'Household Circumstances': 'thHHCircum', 'Num_Household_Members': 'thMemCount', 'Num_Working_Members': 'thWorkerCount', 'Total_Coffee_Area': 'thTotalArea', 'Number of coffee farm plots': 'thPlotCount', 'Supported by': 'thSupportedBy', 'Supported Types': 'thSupportType', 'Status': 'thStatus', 'Activity': 'thActivity' },
-    Plots: { 'Plot_Id': 'thPlotId', 'Plot_Name': 'thPlotName', 'Area (ha)': 'thPlotArea', 'Location': 'thLocation', 'Land use rights certificate?': 'thLURC', 'Border_Natural_Forest': 'thBorderForest', 'Receive seedlings from': 'thSeedlingSource', 'Place name': 'thPlaceName', 'Num_Shade_Trees_Before': 'thShadeTreesBefore', 'Name_Shade_Trees_Before': 'thNameTreesBefore', 'Farm registered for support from': 'thFarmRegSupport', 'Num_Coffee_Trees': 'thCoffeeTrees', 'Coffee_Planted_Year': 'thPlantYear', 'Notes for details (Optional)': 'thNotes', 'Number of shade trees': 'thShadeTreeCount', 'Number of shade tree species': 'thSpeciesCount', 'Map Sheet': 'thMapSheet', 'Sub-mapsheet': 'thSubMap', 'Status': 'thStatus', 'Activity': 'thActivity' },
-    Yearly_Data: { 'Record_Id': 'thRecordID', 'Year': 'thYearVal', 'Annual_Volume_Cherry': 'thCherryVol', 'Volume_High_Quality': 'thVolHQ', 'Total_Coffee_Income': 'thIncome', 'Fertilizers_Applied': 'thFertApplied', 'Name of fertilizer': 'thFertName', 'Fertilizer volume': 'thFertVol', 'Fertilizer cost': 'thFertCost', 'Pesticides_Applied': 'thPestApplied', 'Name of Pesticides': 'thPestName', 'Pesticides volume': 'thPestVol', 'Pesticides cost': 'thPestCost', 'Herbicides_Applied': 'thHerbApplied', 'Name of Herbicides': 'thHerbName', 'Herbicides volume': 'thHerbVol', 'Herbicides cost': 'thHerbCost', 'Hired_Labor_Costs': 'thLaborCost', 'Other_Costs': 'thOtherCost', 'Shade_Trees_supported by': 'thTreeSupportBy', 'Number_Shade_Trees_Planted': 'thTreesPlanted', 'Shade_Trees_Species': 'thSpecies', 'Year planted': 'thYearPlanted', 'Shade_Trees_Died': 'thTreesDead', 'Soil_Test_Support': 'thSoilTest', 'Attending training capacity organized by PFFP': 'thTraining', 'Op6_Activities': 'thOp6', 'Cherry sales registered to Slow': 'thRegSales', 'Cherry sales registered to Slow': 'thRegSales', 'Cherry sales supplied to Slow': 'thRealSales', 'Revenue from cherry sales to Slow (VND)': 'thRevSales', 'Cherry bought by Slow via processor': 'thBoughtVia', 'Status': 'thStatus', 'Activity': 'thActivity' }
+    Plots: { 'Plot_Id': 'thPlotId', 'Plot_Name': 'thPlotName', 'Area (ha)': 'thPlotArea', 'Location': 'thLocation', 'Land use rights certificate?': 'thLURC', 'Border_Natural_Forest': 'thBorderForest', 'Receive seedlings from': 'thSeedlingSource', 'Place name': 'thPlaceName', 'Num_Shade_Trees_Before': 'thShadeTreesBefore', 'Name_Shade_Trees_Before': 'thNameTreesBefore', 'Farm registered for support from': 'thFarmRegSupport', 'Num_Coffee_Trees': 'thCoffeeTrees', 'Coffee_Planted_Year': 'thPlantYear', 'Notes for details (Optional)': 'thNotes', 'Number of shade trees': 'thShadeTreeCount', 'Number of shade tree species': 'thSpeciesCount', 'Map Sheet': 'thMapSheet', 'Sub-mapsheet': 'thSubMap' },
+    Yearly_Data: { 'Record_Id': 'thRecordID', 'Year': 'thYearVal', 'Annual_Volume_Cherry': 'thCherryVol', 'Volume_High_Quality': 'thVolHQ', 'Total_Coffee_Income': 'thIncome', 'Fertilizers_Applied': 'thFertApplied', 'Name of fertilizer': 'thFertName', 'Fertilizer volume': 'thFertVol', 'Fertilizer cost': 'thFertCost', 'Pesticides_Applied': 'thPestApplied', 'Name of Pesticides': 'thPestName', 'Pesticides volume': 'thPestVol', 'Pesticides cost': 'thPestCost', 'Herbicides_Applied': 'thHerbApplied', 'Name of Herbicides': 'thHerbName', 'Herbicides volume': 'thHerbVol', 'Herbicides cost': 'thHerbCost', 'Hired_Labor_Costs': 'thLaborCost', 'Other_Costs': 'thOtherCost', 'Shade_Trees_supported by': 'thTreeSupportBy', 'Number_Shade_Trees_Planted': 'thTreesPlanted', 'Shade_Trees_Species': 'thSpecies', 'Year planted': 'thYearPlanted', 'Shade_Trees_Died': 'thTreesDead', 'Survival Rate': 'thSurvivalRate', 'Fertiliser by WWF': 'thFertWWF', 'Lime from SLOW': 'thLimeSlow', 'Cover Crop from SLOW (Yes/No)': 'thCoverCrop', 'Soil Test Support': 'thSoilTest', 'Attending training capacity organized by PFFP': 'thTraining', 'Op6_Activities': 'thOp6', 'Cherry sales registered to Slow': 'thRegSales', 'Cherry sales supplied to Slow': 'thRealSales', 'Revenue from cherry sales to Slow (VND)': 'thRevSales', 'Cherry bought by Slow via processor': 'thBoughtVia', 'Update': 'thUpdate' }
 };
 
 // THÊM MAPPING CHO CÁC TRƯỜNG MỚI (YEAR OF SUPPORT, MANAGE BY)
@@ -1230,9 +1230,11 @@ function renderChildGrid(data, type) {
                 </div>
                 <div class="detail-grid-container">`;
 
-        Object.keys(labels).forEach(key => {
-            if (key === 'Status' || key === 'Activity') return; // Skip in View/PDF
+        Object.keys(item).forEach(key => {
+            if (key.startsWith('_') || key === 'Status' || key === 'Activity') return; // Skip internal/excluded
             let labelKey = labels[key];
+            if (!labelKey) return; // Skip if not explicitly mapped for this view
+
             let label = translations[currentLang][labelKey] || labelKey;
             let val = resolveValue(key, item[key], type);
 
@@ -1261,7 +1263,7 @@ function printFarmerDetail() {
         printArea.innerHTML = `
             <div class="print-header-layout">
                 <div class="print-logo-col">
-                    <img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png" class="print-logo-img">
+                    <img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png" style="display: block; margin: 0 auto; max-width: 100%;">
                 </div>
                 <div class="print-text-col">
                     <div class="print-project-name-vi">SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ NHIÊN</div>

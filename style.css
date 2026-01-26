@@ -773,46 +773,51 @@
         }
 
         /* Header in ấn */
-        /* Header in ấn - Bố cục dọc, căn giữa */
+        /* Header in ấn - Bố cục dọc, căn giữa tuyệt đối */
         .print-header-layout {
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
+            display: block !important;
             text-align: center !important;
             border-bottom: 2px solid #2E7D32 !important;
-            padding-bottom: 20px !important;
-            margin-bottom: 20px !important;
-        }
-
-        .print-logo-col {
-            width: auto !important;
-            margin-bottom: 15px !important;
-        }
-
-        .print-logo-img {
-            max-height: 80px !important;
-            width: auto !important;
-            object-fit: contain !important;
-        }
-
-        .print-text-col {
+            padding-bottom: 25px !important;
+            margin-bottom: 30px !important;
             width: 100% !important;
         }
 
+        .print-logo-col {
+            display: block !important;
+            width: 100% !important;
+            margin: 0 auto 20px auto !important;
+            text-align: center !important;
+        }
+
+        .print-logo-img {
+            max-height: 90px !important;
+            width: auto !important;
+            display: inline-block !important;
+            /* Center inside text-align:center */
+        }
+
+        .print-text-col {
+            display: block !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+            text-align: center !important;
+        }
+
         .print-project-name-vi {
-            font-size: 18pt !important;
+            font-size: 19pt !important;
             font-weight: bold !important;
             color: #2E7D32 !important;
-            margin-bottom: 5px !important;
-            line-height: 1.2 !important;
+            margin-bottom: 8px !important;
+            line-height: 1.3 !important;
             text-transform: uppercase !important;
         }
 
         .print-project-name-en {
-            font-size: 11pt !important;
+            font-size: 12pt !important;
             font-style: italic !important;
             color: #444 !important;
-            line-height: 1.2 !important;
+            line-height: 1.3 !important;
         }
 
         .no-print {
