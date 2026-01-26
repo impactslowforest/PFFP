@@ -203,9 +203,32 @@ const FIELD_MAPPING = {
         'Supported Types': { map: 'drop', condition: 'Support list', separator: ',' },
         'Staff input': 'user'
     },
-    'Plots': { 'Land use rights certificate?': { map: 'drop', condition: 'Answer' }, 'Border_Natural_Forest': { map: 'drop', condition: 'Answer' }, 'Receive seedlings from': { map: 'drop', condition: 'Organization' }, 'Farm registered for support from': { map: 'drop', condition: 'Support list', separator: ',' }, 'Name_Shade_Trees_Before': { map: 'species', separator: ',' }, 'Coffee_Planted_Year': { map: 'drop', condition: 'Planted' }, 'Place name': 'admin', 'Status': { map: 'drop', condition: 'Status' }, 'Activity': { map: 'drop', condition: 'Activity' } },
+    'Plots': {
+        'Land use rights certificate?': { map: 'drop', condition: 'Answer' },
+        'Border_Natural_Forest': { map: 'drop', condition: 'Answer' },
+        'Receive seedlings from': { map: 'drop', condition: 'Organization' },
+        'Farm registered for support from': { map: 'drop', condition: 'Support list', separator: ',' },
+        'Name_Shade_Trees_Before': { map: 'species', separator: ',' },
+        'Coffee_Planted_Year': { map: 'drop', condition: 'Planted' },
+        'Place name': 'admin',
+        'Status': { map: 'drop', condition: 'Status' },
+        'Activity': { map: 'drop', condition: 'Activity' }
+    },
 
-    'Yearly_Data': { 'Year': { map: 'drop', condition: 'Participation Year' }, 'Status': { map: 'drop', condition: 'Status' }, 'Activity': { map: 'drop', condition: 'Activity' }, 'Fertilizers_Applied': { map: 'drop', condition: 'Answer' }, 'Name of fertilizer': { map: 'drop', condition: 'Fertilizer', separator: ',' }, 'Pesticides_Applied': { map: 'drop', condition: 'Answer' }, 'Herbicides_Applied': { map: 'drop', condition: 'Answer' }, 'Shade_Trees_supported by': { map: 'drop', condition: 'Organization', separator: ',' }, 'Year planted': { map: 'drop', condition: 'Planted' }, 'Soil_Test_Support': { map: 'drop', condition: 'Answer' }, 'Attending training capacity organized by PFFP': { map: 'trainingList', separator: ',' }, 'Shade_Trees_Species': { map: 'species', separator: ',' } }
+    'Yearly_Data': {
+        'Year': { map: 'drop', condition: 'Participation Year' },
+        'Status': { map: 'drop', condition: 'Status' },
+        'Activity': { map: 'drop', condition: 'Activity' },
+        'Fertilizers_Applied': { map: 'drop', condition: 'Answer' },
+        'Name of fertilizer': { map: 'drop', condition: 'Fertilizer', separator: ',' },
+        'Pesticides_Applied': { map: 'drop', condition: 'Answer' },
+        'Herbicides_Applied': { map: 'drop', condition: 'Answer' },
+        'Shade_Trees_supported by': { map: 'drop', condition: 'Organization', separator: ',' },
+        'Year planted': { map: 'drop', condition: 'Planted' },
+        'Soil_Test_Support': { map: 'drop', condition: 'Answer' },
+        'Attending training capacity organized by PFFP': { map: 'trainingList', separator: ',' },
+        'Shade_Trees_Species': { map: 'species', separator: ',' }
+    }
 };
 
 function escapeHtml(str) {
@@ -520,8 +543,46 @@ function preProcessData(data) {
     }
 }
 
-function getLabel(id, map) { if (!id) return ""; let lId = String(id).trim(); if (map && map[lId]) return currentLang === 'vi' ? map[lId].vi : map[lId].en; return id; }
-function resolveValue(key, value, tName) { if (!value) return ""; const c = FIELD_MAPPING[tName]; if (!c || !c[key]) return value; const mT = c[key]; let mO = null; if (typeof mT === 'string') { if (mT === 'admin') mO = adminMap; else if (mT === 'drop') mO = dropMap; else if (mT === 'species') mO = speciesMap; else if (mT === 'user') mO = userMap; else if (mT === 'trainingList') mO = trainingListMap; else if (mT === 'farmers') mO = farmersMap; else if (mT === 'plots') mO = plotsMap; } else if (typeof mT === 'object' && mT.map) { let mK = mT.map; if (mK === 'admin') mO = adminMap; else if (mK === 'drop') mO = dropMap; else if (mK === 'species') mO = speciesMap; else if (mK === 'user') mO = userMap; else if (mK === 'trainingList') mO = trainingListMap; } if (!mO) return value; if (typeof mT === 'object' && mT.separator) { return String(value).split(mT.separator).map(p => getLabel(p.trim(), mO)).join(', '); } else { return getLabel(value, mO); } }
+function getLabel(id, map) {
+    if (!id) return "";
+    let lId = String(id).trim();
+    if (map && map[lId]) return currentLang === 'vi' ? map[lId].vi : map[lId].en;
+
+    // Tìm kiếm thông minh: Thử tìm theo mã số (ví dụ '3' trong '3. Trung bình')
+    let match = lId.match(/^([^\.\)\s]+)[\.\)\s]/);
+    if (match) {
+        let prefix = match[1].trim();
+        if (map && map[prefix]) return currentLang === 'vi' ? map[prefix].vi : map[prefix].en;
+    }
+    return id;
+}
+
+function resolveValue(key, value, tName) {
+    if (!value) return "";
+    const c = FIELD_MAPPING[tName];
+    if (!c || !c[key]) return value;
+
+    const mT = c[key];
+    let mO = null;
+    let separator = (typeof mT === 'object') ? mT.separator : null;
+
+    let mK = (typeof mT === 'string') ? mT : mT.map;
+    if (mK === 'admin') mO = adminMap;
+    else if (mK === 'drop') mO = dropMap;
+    else if (mK === 'species') mO = speciesMap;
+    else if (mK === 'user') mO = userMap;
+    else if (mK === 'trainingList') mO = trainingListMap;
+    else if (mK === 'farmers') mO = farmersMap;
+    else if (mK === 'plots') mO = plotsMap;
+
+    if (!mO) return value;
+
+    if (separator) {
+        return String(value).split(separator).map(p => getLabel(p.trim(), mO)).join(', ');
+    } else {
+        return getLabel(value, mO);
+    }
+}
 
 function toggleLanguage() {
     currentLang = (currentLang === 'vi') ? 'en' : 'vi';
