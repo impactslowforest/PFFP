@@ -14,6 +14,7 @@ var chartInstances = {};
 var dtFarmers = null;
 var dtPlots = null; var dtYearly = null; var dtUsers = null;
 var currentFarmerId = null;
+var activePrintName = "";
 // Maps
 var adminMap = {}; var dropMap = {}; var speciesMap = {};
 var userMap = {}; var trainingListMap = {}; var farmersMap = {}; var plotsMap = {};
@@ -1164,7 +1165,11 @@ function showFarmerDetails(farmerId) {
 
     // --- Đẩy nội dung vào Modal ---
     $('#detailContent').html(html);
-    $('#farmerDetailTitle').text(`${translations[currentLang].detailPrefix}: ${farmer.Full_Name}`);
+    let displayTitle = `${translations[currentLang].detailPrefix}: ${farmer.Full_Name}`;
+    $('#farmerDetailTitle').text(displayTitle);
+
+    // Lưu tên hộ để dùng làm tên file khi in PDF
+    activePrintName = `${farmer.Full_Name}_(${farmer.Farmer_ID})`;
 
     // --- TẠO NÚT CHỨC NĂNG (FOOTER) ---
     let buttonsHtml = `
@@ -1259,6 +1264,10 @@ function printFarmerDetail() {
     const printArea = document.getElementById('printArea');
 
     if (printArea) {
+        // Đổi tiêu đề trình duyệt tạm thời để đặt tên file PDF khi in
+        const originalTitle = document.title;
+        if (activePrintName) document.title = activePrintName;
+
         // Copy nội dung vào khu vực in riêng
         printArea.innerHTML = `
             <div class="print-header-layout">
@@ -1281,8 +1290,8 @@ function printFarmerDetail() {
         // Gọi lệnh in
         window.print();
 
-        // Xóa nội dung sau khi in (tùy chọn)
-        // printArea.innerHTML = '';
+        // Trả lại tiêu đề cũ sau một khoảng chờ ngắn (để trình duyệt kịp nhận lệnh in)
+        setTimeout(() => { document.title = originalTitle; }, 1000);
     } else {
         window.print();
     }
