@@ -35,9 +35,10 @@
             </div>
             <div class="login-form-side">
                 <div class="login-card">
-                    <div class="d-flex justify-content-end mb-2"><button class="btn btn-lang" onclick="toggleLanguage()"
-                            title="Switch Language"><span id="loginLangIcon"><img src="https://flagcdn.com/w40/gb.png"
-                                    class="flag-icon" alt="English"></span></button></div>
+                    <div class="d-flex justify-content-end mb-2"><button type="button" class="btn btn-lang"
+                            onclick="toggleLanguage()" title="Switch Language" aria-label="Toggle Language"><span
+                                id="loginLangIcon"><img src="https://flagcdn.com/w40/gb.png" class="flag-icon"
+                                    alt="English"></span></button></div>
                     <div class="login-intro-text" data-i18n="lblSelectOrg">Vui lòng chọn tổ chức:</div>
                     <div class="org-btn-group">
                         <button type="button" class="btn btn-org" onclick="filterUserByOrg('WFI', this)"><img
@@ -87,15 +88,21 @@
             <div class="header-content">
                 <div><img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png"
                         alt="Logo" class="app-logo"></div>
-                <div class="app-title">
+                <h1 class="app-title mb-0">
                     <span class="title-vi">SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ NHIÊN</span>
                     <span class="title-en">PROSPEROUS FARMERS AND FORESTS PARTNERSHIP</span>
-                </div>
+                </h1>
                 <div class="d-flex align-items-center">
-                    <button class="btn btn-lang" onclick="toggleLanguage()" id="langBtn" title="Switch Language"><img
-                            src="https://flagcdn.com/w40/gb.png" class="flag-icon" alt="English"></button>
-                    <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()" title="Sign Out"><i
-                            class="fas fa-sign-out-alt"></i></button>
+                    <button type="button" class="btn btn-lang" onclick="toggleLanguage()" id="langBtn"
+                        title="Switch Language" aria-label="Switch Language"><img src="https://flagcdn.com/w40/gb.png"
+                            class="flag-icon" alt="English"></button>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-sm btn-outline-success ms-2" id="btnPrint"
+                            onclick="window.print()" title="In Báo Cáo" aria-label="Print Report">
+                            <i class="fas fa-print"></i></button>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-light ms-2" onclick="logout()" title="Sign Out"
+                        aria-label="Sign Out"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </div>
         </div>
@@ -104,66 +111,77 @@
             <div class="row g-2 mb-3">
                 <div class="col-6 col-md-2">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-users"></i></div>
                         <div class="kpi-value" id="kpi1">0</div>
                         <div class="kpi-label" data-i18n="kpi1">Tổng số hộ</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-2">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-map-marked-alt"></i></div>
                         <div class="kpi-value" id="kpi2">0</div>
                         <div class="kpi-label" data-i18n="kpi2">Tổng số lô</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-2">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-vector-square"></i></div>
                         <div class="kpi-value" id="kpi3">0</div>
                         <div class="kpi-label" data-i18n="kpi3">Tổng DT (ha)</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-2">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-tree"></i></div>
                         <div class="kpi-value" id="kpi4">0</div>
-                        <div class="kpi-label" data-i18n="kpi4">Cây che bóng</div>
+                        <div class="kpi-label" data-i18n="kpi4">Số cây che bóng có sẵn</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-2">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-seedling"></i></div>
                         <div class="kpi-value" id="kpi5">0</div>
-                        <div class="kpi-label" data-i18n="kpi5">Cây HT đã trồng</div>
+                        <div class="kpi-label" data-i18n="kpi5">Số cây che bóng được hỗ trợ đã trồng</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-2">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-leaf"></i></div>
                         <div class="kpi-value" id="kpi6">0</div>
                         <div class="kpi-label" data-i18n="kpi6">Tổng số loài</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-2">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-user-friends"></i></div>
                         <div class="kpi-value" id="kpi7">0</div>
                         <div class="kpi-label" data-i18n="kpi7">Tổng nhóm hộ</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-2">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-check-double"></i></div>
                         <div class="kpi-value" id="kpi8">0%</div>
                         <div class="kpi-label" data-i18n="kpi8">Tỷ lệ hoàn thành</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-2">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
                         <div class="kpi-value" id="kpi9">0%</div>
                         <div class="kpi-label" data-i18n="kpi9">Tỷ lệ sống</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-weight-hanging"></i></div>
                         <div class="kpi-value" id="kpi10">0.00</div>
                         <div class="kpi-label" data-i18n="kpi10">Tổng SL Đại trà (Tấn)</div>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="kpi-card">
+                        <div class="kpi-icon"><i class="fas fa-star"></i></div>
                         <div class="kpi-value" id="kpi11">0.00</div>
                         <div class="kpi-label" data-i18n="kpi11">Tổng SL CLC (Tấn)</div>
                     </div>
@@ -188,7 +206,9 @@
                                 <li>
                                     <hr class="dropdown-divider my-1">
                                 </li>
-                                <div id="yearListContainer"></div>
+                                <li>
+                                    <ul id="yearListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -210,7 +230,9 @@
                                 <li>
                                     <hr class="dropdown-divider my-1">
                                 </li>
-                                <div id="yearSupportListContainer"></div>
+                                <li>
+                                    <ul id="yearSupportListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -232,7 +254,9 @@
                                 <li>
                                     <hr class="dropdown-divider my-1">
                                 </li>
-                                <div id="villageListContainer"></div>
+                                <li>
+                                    <ul id="villageListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -252,7 +276,9 @@
                                 <li>
                                     <hr class="dropdown-divider my-1">
                                 </li>
-                                <div id="statusListContainer"></div>
+                                <li>
+                                    <ul id="statusListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -273,7 +299,9 @@
                                 <li>
                                     <hr class="dropdown-divider my-1">
                                 </li>
-                                <div id="ethnicityListContainer"></div>
+                                <li>
+                                    <ul id="ethnicityListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -295,7 +323,9 @@
                                 <li>
                                     <hr class="dropdown-divider my-1">
                                 </li>
-                                <div id="manageByListContainer"></div>
+                                <li>
+                                    <ul id="manageByListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -317,7 +347,9 @@
                                 <li>
                                     <hr class="dropdown-divider my-1">
                                 </li>
-                                <div id="supportedListContainer"></div>
+                                <li>
+                                    <ul id="supportedListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -338,7 +370,9 @@
                                 <li>
                                     <hr class="dropdown-divider my-1">
                                 </li>
-                                <div id="supportedTypesListContainer"></div>
+                                <li>
+                                    <ul id="supportedTypesListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -359,7 +393,9 @@
                                 <li>
                                     <hr class="dropdown-divider my-1">
                                 </li>
-                                <div id="speciesListContainer"></div>
+                                <li>
+                                    <ul id="speciesListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
                             </ul>
                         </div>
                     </div>
@@ -376,11 +412,12 @@
                             liệu</span></button></li>
                 <li class="nav-item d-flex align-items-center gap-2 ms-auto py-1">
                     <div class="filter-actions d-flex gap-1 me-3">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()"><i
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetFilters()"><i
                                 class="fas fa-undo"></i> <span data-i18n="btnReset">Reset</span></button>
-                        <button class="btn btn-sm btn-outline-info" onclick="refreshData()"><i class="fas fa-sync"></i>
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="refreshData()"><i
+                                class="fas fa-sync"></i>
                             <span data-i18n="btnRefresh">Reload</span></button>
-                        <button class="btn btn-sm btn-outline-success" onclick="exportTable()"><i
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="exportTable()"><i
                                 class="fas fa-file-excel"></i> <span data-i18n="btnExport">Export</span></button>
                     </div>
                     <div id="userGreeting" class="user-greeting" style="display:none;"></div>
@@ -412,7 +449,8 @@
                             <div class="chart-card">
                                 <div class="chart-header">
                                     <span data-i18n="chartParticipationTitle">Sự tham gia qua các năm</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-body"><canvas id="chartParticipation"></canvas></div>
@@ -422,7 +460,8 @@
                             <div class="chart-card">
                                 <div class="chart-header">
                                     <span data-i18n="chartStatusTitle">Tình trạng hoạt động (Status)</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-body"><canvas id="chartStatus"></canvas></div>
@@ -432,7 +471,8 @@
                             <div class="chart-card">
                                 <div class="chart-header">
                                     <span data-i18n="chart4Title">Tỷ lệ Hoàn thành</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-body"><canvas id="chartCompletion"></canvas></div>
@@ -442,7 +482,8 @@
                             <div class="chart-card">
                                 <div class="chart-header">
                                     <span data-i18n="chartManageByTitle">Đơn vị quản lý</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-body"><canvas id="chartManageBy"></canvas></div>
@@ -461,7 +502,8 @@
                                             <option value="5">Top 5</option>
                                             <option value="10">Top 10</option>
                                         </select>
-                                        <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                        <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                            title="Reset All" aria-label="Reset All"><i
                                                 class="fas fa-sync-alt"></i></button>
                                     </div>
                                 </div>
@@ -471,8 +513,9 @@
                         <div class="col-md-12 col-lg-3">
                             <div class="chart-card">
                                 <div class="chart-header">
-                                    <span data-i18n="chartTrainingTitle">Tham gia tập huấn & Op6</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <span data-i18n="chartTrainingTitle">Tham gia tập huấn &amp; Op6</span>
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-body"><canvas id="chartTraining"></canvas></div>
@@ -491,7 +534,8 @@
                                             <option value="5">Top 5</option>
                                             <option value="10">Top 10</option>
                                         </select>
-                                        <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                        <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                            title="Reset All" aria-label="Reset All"><i
                                                 class="fas fa-sync-alt"></i></button>
                                     </div>
                                 </div>
@@ -502,7 +546,8 @@
                             <div class="chart-card">
                                 <div class="chart-header">
                                     <span data-i18n="chart2Title">Tỷ lệ thành phần dân tộc</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-body"><canvas id="chartEthnicity"></canvas></div>
@@ -665,7 +710,8 @@
                                             <option value="5">Top 5</option>
                                             <option value="10">Top 10</option>
                                         </select>
-                                        <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                        <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                            title="Reset All" aria-label="Reset All"><i
                                                 class="fas fa-sync-alt"></i></button>
                                     </div>
                                 </div>
@@ -684,7 +730,8 @@
                                             <option value="5">Top 5</option>
                                             <option value="10">Top 10</option>
                                         </select>
-                                        <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                        <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                            title="Reset All" aria-label="Reset All"><i
                                                 class="fas fa-sync-alt"></i></button>
                                     </div>
                                 </div>
@@ -696,7 +743,8 @@
                             <div class="analytics-card">
                                 <div class="chart-header">
                                     <span data-i18n="chartFinanceTitle">Tổng thu nhập / Chi phí</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-container-inner"><canvas id="chartFinance"></canvas></div>
@@ -706,7 +754,8 @@
                             <div class="analytics-card">
                                 <div class="chart-header">
                                     <span data-i18n="chartShadeTreesTitle">Cây che bóng</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-container-inner"><canvas id="chartShadeTrees"></canvas></div>
@@ -716,7 +765,8 @@
                             <div class="analytics-card">
                                 <div class="chart-header">
                                     <span data-i18n="chartSlowSalesTitle">Sản lượng bán cho SLOW</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-container-inner"><canvas id="chartSlowSales"></canvas></div>
@@ -726,7 +776,8 @@
                             <div class="analytics-card">
                                 <div class="chart-header">
                                     <span data-i18n="chartQualityTitle">Sản lượng CLC / Tổng sản lượng</span>
-                                    <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                    <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                        title="Reset All" aria-label="Reset All"><i
                                             class="fas fa-sync-alt"></i></button>
                                 </div>
                                 <div class="chart-container-inner"><canvas id="chartQuality"></canvas></div>
@@ -745,7 +796,8 @@
                                             <option value="5">Top 5</option>
                                             <option value="10">Top 10</option>
                                         </select>
-                                        <button class="btn-chart-reset" onclick="resetFilters()" title="Reset All"><i
+                                        <button type="button" class="btn-chart-reset" onclick="resetFilters()"
+                                            title="Reset All" aria-label="Reset All"><i
                                                 class="fas fa-sync-alt"></i></button>
                                     </div>
                                 </div>

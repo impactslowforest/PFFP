@@ -340,29 +340,55 @@
     }
 
     .kpi-card {
-        background-color: var(--kpi-bg);
+        background: linear-gradient(145deg, #43a047, #2E7D32);
         color: white;
-        border-radius: 0;
-        padding: 10px;
+        border-radius: 12px;
+        padding: 15px 10px;
         text-align: center;
         height: 100%;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .kpi-card:hover {
-        transform: translateY(-3px);
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+        background: linear-gradient(145deg, #2E7D32, #1b5e20);
+    }
+
+    .kpi-icon {
+        font-size: 1.8rem;
+        opacity: 0.25;
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        z-index: 0;
     }
 
     .kpi-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin-bottom: 0;
+        font-size: 1.6rem;
+        font-weight: 800;
+        margin-bottom: 5px;
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
     .kpi-label {
-        font-size: 0.85rem;
-        opacity: 0.9;
+        font-size: 0.75rem;
+        opacity: 0.95;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        position: relative;
+        z-index: 1;
+        line-height: 1.2;
     }
 
     .chart-card {
@@ -652,10 +678,11 @@
 
     .field-value {
         color: #000;
-        font-weight: 500;
+        font-weight: 600;
         font-size: 0.95rem;
         word-wrap: break-word;
         min-height: 1.2em;
+        text-align: left;
     }
 
     /* Bảng con cho Plots/Yearly */
@@ -680,7 +707,7 @@
         border: 1px solid #ccc;
         padding: 6px;
         vertical-align: middle;
-        text-align: center;
+        text-align: left;
     }
 
     .sub-table td.text-start {
@@ -763,19 +790,22 @@
         }
 
         .field-label {
-            font-size: 8pt !important;
-            color: #666 !important;
+            font-size: 8.5pt !important;
+            color: #555 !important;
             text-align: left !important;
             display: block !important;
             width: 100% !important;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 2px;
         }
 
         .field-value {
             font-size: 10pt !important;
             font-weight: bold !important;
-            text-align: right !important;
+            text-align: left !important;
             display: block !important;
             width: 100% !important;
+            color: #333 !important;
         }
 
         /* Header in ấn */
@@ -797,8 +827,8 @@
         }
 
         .print-logo-img {
-            max-height: 36px !important;
-            /* Đã giảm còn 2/5 (90 * 0.4) */
+            max-height: 50px !important;
+            /* Increased from 36px */
             width: auto !important;
             display: inline-block !important;
         }
@@ -811,7 +841,8 @@
         }
 
         .print-project-name-vi {
-            font-size: 18pt !important;
+            font-size: 16pt !important;
+            /* Slightly smaller for better fit */
             font-weight: bold !important;
             color: #2E7D32 !important;
             margin-bottom: 5px !important;
@@ -820,7 +851,7 @@
         }
 
         .print-project-name-en {
-            font-size: 11pt !important;
+            font-size: 10pt !important;
             font-style: italic !important;
             color: #444 !important;
             line-height: 1.2 !important;

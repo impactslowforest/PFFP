@@ -69,7 +69,7 @@ const translations = {
         lblUsername: "Chọn nhân viên:", lblPassword: "Mật khẩu:", btnLogin: "ĐĂNG NHẬP",
 
         loginErrorTitle: "Lỗi đăng nhập", loginErrorMsg: "Thông tin đăng nhập không đúng hoặc tài khoản chưa kích hoạt (Status != Act).",
-        kpi1: "Tổng số hộ", kpi2: "Tổng số lô", kpi3: "Tổng DT (ha)", kpi4: "Cây che bóng", kpi5: "Cây HT đã trồng", kpi6: "Tổng số loài", kpi7: "Tổng nhóm hộ", kpi8: "Tỷ lệ hoàn thành", kpi9: "Tỷ lệ sống",
+        kpi1: "Tổng số hộ", kpi2: "Tổng số lô", kpi3: "Tổng DT (ha)", kpi4: "Số cây che bóng có sẵn", kpi5: "Số cây che bóng được hỗ trợ đã trồng", kpi6: "Tổng số loài", kpi7: "Tổng nhóm hộ", kpi8: "Tỷ lệ hoàn thành", kpi9: "Tỷ lệ sống",
 
 
         kpi10: "Tổng SL Đại trà (Tấn)", kpi11: "Tổng SL CLC (Tấn)",
@@ -130,7 +130,7 @@ const translations = {
         lblSelectOrg: "Please select organization:", optSelectOrgFirst: "-- Select Organization First --",
         lblUsername: "Select Staff:", lblPassword: "Password:", btnLogin: "LOGIN",
         loginErrorTitle: "Login Error", loginErrorMsg: "Incorrect password or account inactive.",
-        kpi1: "Total Farmers", kpi2: "Total Plots", kpi3: "Total Area (ha)", kpi4: "Shade Trees", kpi5: "Planted Trees", kpi6: "Total Species", kpi7: "Total Farmer Groups", kpi8: "Completion Rate", kpi9: "Survival Rate",
+        kpi1: "Total Farmers", kpi2: "Total Plots", kpi3: "Total Area (ha)", kpi4: "Available Shade Trees (Before)", kpi5: "Planted Support Shade Trees", kpi6: "Total Species", kpi7: "Total Farmer Groups", kpi8: "Completion Rate", kpi9: "Survival Rate",
         kpi10: "Total Cherry (Ton)", kpi11: "Total HQ (Ton)",
 
         // NEW FILTERS & TITLES
@@ -179,7 +179,7 @@ const translations = {
 };
 const EXPORT_HEADERS = translations;
 const FIELD_LABELS = {
-    Farmers: { 'Full_Name': 'thName', 'Farmer_ID': 'thFarmerID', 'Year_Of_Birth': 'thYOB', 'Gender': 'thGender', 'Phone_Number': 'thPhone', 'Farmer_Group_Name': 'thGroup', 'Cooperative_Name': 'thCoop', 'Village_Name': 'thVillage', 'Commune_Name': 'thCommune', 'Address': 'thAddress', 'ID card': 'thIDCard', 'Ethnicity': 'thEthnicity', 'Socioeconomic Status': 'thEcoStatus', 'Household Circumstances': 'thHHCircum', 'Num_Household_Members': 'thMemCount', 'Num_Working_Members': 'thWorkerCount', 'Total_Coffee_Area': 'thTotalArea', 'Number of coffee farm plots': 'thPlotCount', 'Supported by': 'thSupportedBy', 'Supported Types': 'thSupportType', 'Status': 'thStatus', 'Activity': 'thActivity' },
+    Farmers: { 'Full_Name': 'thName', 'Farmer_ID': 'thFarmerID', 'Year_Of_Birth': 'thYOB', 'Gender': 'thGender', 'Phone_Number': 'thPhone', 'Farmer_Group_Name': 'thGroup', 'Cooperative_Name': 'thCoop', 'Village_Name': 'thVillage', 'Commune_Name': 'thCommune', 'Address': 'thAddress', 'ID card': 'thIDCard', 'Ethnicity': 'thEthnicity', 'Socioeconomic Status': 'thEcoStatus', 'Household Circumstances': 'thHHCircum', 'Num_Household_Members': 'thMemCount', 'Num_Working_Members': 'thWorkerCount', 'Total_Coffee_Area': 'thTotalArea', 'Number of coffee farm plots': 'thPlotCount', 'Supported by': 'thSupportedBy', 'Manage by': 'filterManageBy', 'Year of support': 'filterYearSupport', 'Supported Types': 'thSupportType', 'Participation Year': 'thYear', 'Status': 'thStatus', 'Activity': 'thActivity' },
     Plots: { 'Plot_Id': 'thPlotId', 'Plot_Name': 'thPlotName', 'Area (ha)': 'thPlotArea', 'Location': 'thLocation', 'Land use rights certificate?': 'thLURC', 'Border_Natural_Forest': 'thBorderForest', 'Receive seedlings from': 'thSeedlingSource', 'Place name': 'thPlaceName', 'Num_Shade_Trees_Before': 'thShadeTreesBefore', 'Name_Shade_Trees_Before': 'thNameTreesBefore', 'Farm registered for support from': 'thFarmRegSupport', 'Num_Coffee_Trees': 'thCoffeeTrees', 'Coffee_Planted_Year': 'thPlantYear', 'Notes for details (Optional)': 'thNotes', 'Number of shade trees': 'thShadeTreeCount', 'Number of shade tree species': 'thSpeciesCount', 'Map Sheet': 'thMapSheet', 'Sub-mapsheet': 'thSubMap' },
     Yearly_Data: { 'Record_Id': 'thRecordID', 'Year': 'thYearVal', 'Annual_Volume_Cherry': 'thCherryVol', 'Volume_High_Quality': 'thVolHQ', 'Total_Coffee_Income': 'thIncome', 'Fertilizers_Applied': 'thFertApplied', 'Name of fertilizer': 'thFertName', 'Fertilizer volume': 'thFertVol', 'Fertilizer cost': 'thFertCost', 'Pesticides_Applied': 'thPestApplied', 'Name of Pesticides': 'thPestName', 'Pesticides volume': 'thPestVol', 'Pesticides cost': 'thPestCost', 'Herbicides_Applied': 'thHerbApplied', 'Name of Herbicides': 'thHerbName', 'Herbicides volume': 'thHerbVol', 'Herbicides cost': 'thHerbCost', 'Hired_Labor_Costs': 'thLaborCost', 'Other_Costs': 'thOtherCost', 'Shade_Trees_supported by': 'thTreeSupportBy', 'Number_Shade_Trees_Planted': 'thTreesPlanted', 'Shade_Trees_Species': 'thSpecies', 'Year planted': 'thYearPlanted', 'Shade_Trees_Died': 'thTreesDead', 'Survival Rate': 'thSurvivalRate', 'Fertiliser by WWF': 'thFertWWF', 'Lime from SLOW': 'thLimeSlow', 'Cover Crop from SLOW (Yes/No)': 'thCoverCrop', 'Soil Test Support': 'thSoilTest', 'Attending training capacity organized by PFFP': 'thTraining', 'Op6_Activities': 'thOp6', 'Cherry sales registered to Slow': 'thRegSales', 'Cherry sales supplied to Slow': 'thRealSales', 'Revenue from cherry sales to Slow (VND)': 'thRevSales', 'Cherry bought by Slow via processor': 'thBoughtVia', 'Update': 'thUpdate' }
 };
@@ -223,7 +223,9 @@ const FIELD_MAPPING = {
         'Fertilizers_Applied': { map: 'drop', condition: 'Answer' },
         'Name of fertilizer': { map: 'drop', condition: 'Fertilizer', separator: ',' },
         'Pesticides_Applied': { map: 'drop', condition: 'Answer' },
+        'Name of Pesticides': { map: 'drop', condition: 'Pesticide', separator: ',' },
         'Herbicides_Applied': { map: 'drop', condition: 'Answer' },
+        'Name of Herbicides': { map: 'drop', condition: 'Herbicide', separator: ',' },
         'Shade_Trees_supported by': { map: 'drop', condition: 'Organization', separator: ',' },
         'Year planted': { map: 'drop', condition: 'Planted' },
         'Soil_Test_Support': { map: 'drop', condition: 'Answer' },
@@ -1127,7 +1129,8 @@ function showFarmerDetails(farmerId) {
         'Farmer_Group_Name', 'Cooperative_Name', 'Address',
         'Num_Household_Members', 'Num_Working_Members', 'Socioeconomic Status',
         'Household Circumstances', 'Total_Coffee_Area', 'Number of coffee farm plots',
-        'Supported by', 'Supported Types', 'Participation Year', 'Staff input'
+        'Supported by', 'Manage by', 'Supported Types',
+        'Participation Year', 'Year of support', 'Staff input'
     ];
 
     farmerFields.forEach(key => {
