@@ -5,7 +5,13 @@
     <base target="_top">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dashboard DGBP - Final</title>
+    <title>PFFP Dashboard</title>
+    <meta name="theme-color" content="#2E7D32">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet"
@@ -13,7 +19,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
+<body data-lang="vi">
 
     <div id="loading">
         <div class="hourglass-loader"><i class="fas fa-hourglass-half"></i></div>
@@ -30,8 +36,8 @@
                 <div class="login-logo-container"><img
                         src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png"
                         alt="Logo" class="login-logo-main"></div>
-                <div class="login-project-vi">SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ NHIÊN</div>
-                <div class="login-project-en">PROSPEROUS FARMERS AND FORESTS PARTNERSHIP</div>
+                <div class="login-project-vi">Sản xuất cà phê sinh thái và<br>cải thiện rừng tự nhiên</div>
+                <div class="login-project-en">Prosperous Farmers and Forests Partnership</div>
             </div>
             <div class="login-form-side">
                 <div class="login-card">
@@ -86,106 +92,136 @@
     <div id="dashboardSection">
         <div class="navbar-custom">
             <div class="header-content">
-                <div><img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png"
-                        alt="Logo" class="app-logo"></div>
+                <div class="header-logo-wrap">
+                    <img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png"
+                        alt="Logo" class="app-logo">
+                </div>
                 <h1 class="app-title mb-0">
-                    <span class="title-vi">SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ NHIÊN</span>
-                    <span class="title-en">PROSPEROUS FARMERS AND FORESTS PARTNERSHIP</span>
+                    <span class="title-vi">Sản xuất cà phê sinh thái và cải thiện rừng tự nhiên</span>
+                    <span class="title-en">Prosperous Farmers and Forests Partnership</span>
                 </h1>
-                <div class="d-flex align-items-center">
+                <div class="header-actions">
+                    <div id="offlineBadge" class="offline-badge" style="display:none;">
+                        <i class="fas fa-plug-circle-xmark"></i> Offline
+                        <span id="syncPending" class="sync-pending" style="display:none;" title="Pending sync"></span>
+                    </div>
+                    <div id="syncingBadge" class="syncing-badge" style="display:none;">
+                        <i class="fas fa-sync fa-spin"></i> Syncing...
+                    </div>
                     <button type="button" class="btn btn-lang" onclick="toggleLanguage()" id="langBtn"
                         title="Switch Language" aria-label="Switch Language"><img src="https://flagcdn.com/w40/gb.png"
                             class="flag-icon" alt="English"></button>
-                    <div class="col-auto">
-                        <button type="button" class="btn btn-sm btn-outline-success ms-2" id="btnPrint"
-                            onclick="window.print()" title="In Báo Cáo" aria-label="Print Report">
-                            <i class="fas fa-print"></i></button>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-light ms-2" onclick="logout()" title="Sign Out"
+                    <span id="headerUserName" class="header-user-name"></span>
+                    <button type="button" class="btn btn-sm btn-outline-success btn-print-desktop" id="btnPrint"
+                        onclick="window.print()" title="In Báo Cáo" aria-label="Print Report">
+                        <i class="fas fa-print"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-light" onclick="logout()" title="Sign Out"
                         aria-label="Sign Out"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </div>
         </div>
 
         <div class="container-fluid mt-3 mb-5">
-            <div class="row g-2 mb-3">
-                <div class="col-6 col-md-2">
-                    <div class="kpi-card">
+            <div class="row g-2 mb-3 kpi-row">
+                <!-- Row 1: 6 KPIs -->
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" data-kpi-link="farmers" onclick="navigateToTable('Farmers')" title="Xem danh sách nông hộ">
                         <div class="kpi-icon"><i class="fas fa-users"></i></div>
                         <div class="kpi-value" id="kpi1">0</div>
                         <div class="kpi-label" data-i18n="kpi1">Tổng số hộ</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-2">
-                    <div class="kpi-card">
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" data-kpi-link="farmers" onclick="navigateToTable('Farmers')" title="Nữ / Tổng nông hộ">
+                        <div class="kpi-icon"><i class="fas fa-venus"></i></div>
+                        <div class="kpi-value" id="kpiFemale">0/0</div>
+                        <div class="kpi-label" data-i18n="kpiFemale">Nữ / Tổng</div>
+                    </div>
+                </div>
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" data-kpi-link="plots" onclick="navigateToTable('Plots')" title="Xem danh sách lô">
                         <div class="kpi-icon"><i class="fas fa-map-marked-alt"></i></div>
                         <div class="kpi-value" id="kpi2">0</div>
                         <div class="kpi-label" data-i18n="kpi2">Tổng số lô</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-2">
-                    <div class="kpi-card">
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" title="Tổng diện tích canh tác">
                         <div class="kpi-icon"><i class="fas fa-vector-square"></i></div>
                         <div class="kpi-value" id="kpi3">0</div>
                         <div class="kpi-label" data-i18n="kpi3">Tổng DT (ha)</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-2">
-                    <div class="kpi-card">
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" title="Cây che bóng có sẵn trước hỗ trợ">
                         <div class="kpi-icon"><i class="fas fa-tree"></i></div>
                         <div class="kpi-value" id="kpi4">0</div>
-                        <div class="kpi-label" data-i18n="kpi4">Số cây che bóng có sẵn</div>
+                        <div class="kpi-label" data-i18n="kpi4">Cây bóng có sẵn</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-2">
-                    <div class="kpi-card">
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" title="Cây che bóng đã trồng từ hỗ trợ dự án">
                         <div class="kpi-icon"><i class="fas fa-seedling"></i></div>
                         <div class="kpi-value" id="kpi5">0</div>
-                        <div class="kpi-label" data-i18n="kpi5">Số cây che bóng được hỗ trợ đã trồng</div>
+                        <div class="kpi-label" data-i18n="kpi5">Cây bóng đã trồng</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-2">
-                    <div class="kpi-card">
+                <!-- Row 2: 6 KPIs -->
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" title="Tổng số loài cây che bóng">
                         <div class="kpi-icon"><i class="fas fa-leaf"></i></div>
                         <div class="kpi-value" id="kpi6">0</div>
                         <div class="kpi-label" data-i18n="kpi6">Tổng số loài</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-2">
-                    <div class="kpi-card">
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" title="Tổng nhóm hộ nông dân">
                         <div class="kpi-icon"><i class="fas fa-user-friends"></i></div>
                         <div class="kpi-value" id="kpi7">0</div>
                         <div class="kpi-label" data-i18n="kpi7">Tổng nhóm hộ</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-2">
-                    <div class="kpi-card">
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" title="Tỷ lệ hoàn thành thu thập dữ liệu">
                         <div class="kpi-icon"><i class="fas fa-check-double"></i></div>
                         <div class="kpi-value" id="kpi8">0%</div>
                         <div class="kpi-label" data-i18n="kpi8">Tỷ lệ hoàn thành</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-2">
-                    <div class="kpi-card">
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" title="Tỷ lệ sống cây che bóng">
                         <div class="kpi-icon"><i class="fas fa-chart-line"></i></div>
                         <div class="kpi-value" id="kpi9">0%</div>
                         <div class="kpi-label" data-i18n="kpi9">Tỷ lệ sống</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="kpi-card">
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" data-kpi-link="yearly" onclick="navigateToTable('Yearly_Data')" title="Xem dữ liệu hàng năm">
                         <div class="kpi-icon"><i class="fas fa-weight-hanging"></i></div>
                         <div class="kpi-value" id="kpi10">0.00</div>
-                        <div class="kpi-label" data-i18n="kpi10">Tổng SL Đại trà (Tấn)</div>
+                        <div class="kpi-label" data-i18n="kpi10">SL đại trà (T)</div>
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
-                    <div class="kpi-card">
+                <div class="col-4 col-md-2">
+                    <div class="kpi-card" data-kpi-link="yearly" onclick="navigateToTable('Yearly_Data')" title="Xem dữ liệu hàng năm">
                         <div class="kpi-icon"><i class="fas fa-star"></i></div>
                         <div class="kpi-value" id="kpi11">0.00</div>
-                        <div class="kpi-label" data-i18n="kpi11">Tổng SL CLC (Tấn)</div>
+                        <div class="kpi-label" data-i18n="kpi11">SL CLC (T)</div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Smart Search Bar -->
+            <div class="search-bar-wrapper mb-2">
+                <div class="input-group">
+                    <span class="input-group-text search-icon"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control search-input" id="globalSearchInput"
+                        placeholder="Tìm kiếm nông hộ, lô, mã ID... / Search farmers, plots, ID..."
+                        data-i18n-placeholder="searchPlaceholder" autocomplete="off">
+                    <button class="btn btn-outline-secondary search-clear-btn" type="button" id="searchClearBtn"
+                        style="display:none;" onclick="clearGlobalSearch()"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="searchResults" class="search-results-dropdown" style="display:none;"></div>
             </div>
 
             <div class="filter-section">
@@ -872,9 +908,9 @@
                                 src="https://raw.githubusercontent.com/impactslowforest/Coffee-dashboard-v2/refs/heads/main/logo.png"
                                 alt="Logo" class="print-logo-img"></div>
                         <div class="print-text-col">
-                            <span class="print-project-name-vi">SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ
-                                NHIÊN</span>
-                            <span class="print-project-name-en">PROSPEROUS FARMERS AND FORESTS PARTNERSHIP</span>
+                            <span class="print-project-name-vi">Sản xuất cà phê sinh thái và cải thiện rừng tự
+                                nhiên</span>
+                            <span class="print-project-name-en">Prosperous Farmers and Forests Partnership</span>
                         </div>
                     </div>
                     <div id="detailContent"></div>
@@ -1067,6 +1103,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="db.js"></script>
     <script src="script.js"></script>
 
 
@@ -1131,6 +1169,55 @@
 
 
     <div id="printArea" class="d-none"></div>
+
+    <!-- Project Introduction Modal -->
+    <div class="modal fade" id="projectIntroModal" tabindex="-1" aria-labelledby="projectIntroLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content intro-modal-content">
+                <div class="intro-modal-header">
+                    <img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png"
+                        alt="PFFP Logo" class="intro-modal-logo">
+                    <button type="button" class="btn-close btn-close-white intro-modal-close" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body intro-modal-body">
+                    <div class="intro-section intro-section-vi">
+                        <h4 class="intro-title">Dự án Sản xuất Cà phê Sinh thái và Cải thiện Rừng Tự nhiên</h4>
+                        <p>WWF và Slow Forest hợp tác xây dựng nền kinh tế rừng bền vững, chống chịu tốt và bao trùm. Dự án chuyển đổi các vườn cà phê độc canh tại huyện Hướng Hóa, tỉnh Quảng Trị sang mô hình nông lâm kết hợp tái sinh, đồng thời bảo vệ và bảo tồn rừng tự nhiên, động vật hoang dã và đa dạng sinh học trong hành lang đa dạng sinh học giữa hai khu bảo tồn Bắc Hướng Hóa và Đakrông.</p>
+                        <p>Cà phê chất lượng cao sẽ được bán cho các đối tác châu Âu thông qua hợp đồng dài hạn, giúp cải thiện sinh kế nông hộ đồng thời mang lại kết quả bảo tồn thiết thực.</p>
+                        <div class="intro-key-facts">
+                            <div class="intro-fact-item"><i class="fas fa-map-marked-alt"></i><div class="fact-text"><strong>2.500 ha</strong> chuyển đổi sang nông lâm kết hợp</div></div>
+                            <div class="intro-fact-item"><i class="fas fa-users"></i><div class="fact-text"><strong>2.000 hộ</strong> nông dân được hỗ trợ</div></div>
+                            <div class="intro-fact-item"><i class="fas fa-chart-line"></i><div class="fact-text">Tăng thu nhập trung bình <strong>40%</strong></div></div>
+                            <div class="intro-fact-item"><i class="fas fa-calendar-alt"></i><div class="fact-text">Giai đoạn: <strong>2023 - 2027</strong></div></div>
+                        </div>
+                    </div>
+                    <hr class="intro-divider">
+                    <div class="intro-section intro-section-en">
+                        <h4 class="intro-title">Prosperous Farmers and Forests Partnership (PFFP)</h4>
+                        <p>WWF and Slow Forest are joining forces to build sustainable, resilient, and inclusive forest economies. The partnership transforms monoculture coffee plantations in Huong Hoa district, Quang Tri province, Vietnam to regenerative agroforestry, protecting the biodiversity corridor between Bac Huong Hoa and Da Krong nature reserves.</p>
+                        <p>High-quality coffee will be sold to European off-takers through long-term contracts, enabling improved livelihoods for smallholders while delivering conservation outcomes.</p>
+                        <div class="intro-key-facts">
+                            <div class="intro-fact-item"><i class="fas fa-map-marked-alt"></i><div class="fact-text"><strong>2,500 ha</strong> transforming to agroforestry</div></div>
+                            <div class="intro-fact-item"><i class="fas fa-users"></i><div class="fact-text"><strong>2,000 households</strong> supported</div></div>
+                            <div class="intro-fact-item"><i class="fas fa-chart-line"></i><div class="fact-text">Average income increase of <strong>40%</strong></div></div>
+                            <div class="intro-fact-item"><i class="fas fa-calendar-alt"></i><div class="fact-text">Period: <strong>2023 - 2027</strong></div></div>
+                        </div>
+                    </div>
+                    <div class="intro-highlights">
+                        <div class="intro-highlight-item"><i class="fas fa-seedling"></i> Danida Green Business Partnerships</div>
+                        <div class="intro-highlight-item"><i class="fas fa-leaf"></i> SDG 2 &amp; SDG 15</div>
+                        <div class="intro-highlight-item"><i class="fas fa-coffee"></i> Nature-positive coffee</div>
+                    </div>
+                    <div class="intro-partners">
+                        <img src="https://cdn.freebiesupply.com/logos/large/2x/wwf-4-logo-black-and-white.png" alt="WWF" class="intro-partner-logo">
+                        <img src="https://www.deli-news.dk/wp-content/uploads/2024/11/Master-SLOW-Logo-1-1024x1024.png" alt="Slow Forest" class="intro-partner-logo">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>

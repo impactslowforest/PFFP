@@ -1,5 +1,13 @@
-// --- CẤU HÌNH KẾT NỐI SERVER ---
-const API_URL = "https://script.google.com/macros/s/AKfycbxKhAJq5IIqJx5zLV0aFEVy7tukiTZss85wGiPr7vsMf1wBsRRRZDkyMtDEU0y9P9ZthA/exec";
+// --- CẤU HÌNH KẾT NỐI SUPABASE ---
+const SUPABASE_URL = "https://yemivofvnbahqptxnqto.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllbWl2b2Z2bmJhaHFwdHhucXRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MjA5MjgsImV4cCI6MjA4NjQ5NjkyOH0.aDB-wtteHN7AibjPlc4TvADFZW2mam257vaxNQweCTk";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const TABLE_MAP = {
+    'Farmers':     { table: 'farmers',     idCol: 'Farmer_ID' },
+    'Plots':       { table: 'plots',       idCol: 'Plot_Id' },
+    'Yearly_Data': { table: 'yearly_data', idCol: 'Record_Id' },
+    'User':        { table: 'users',       idCol: 'Staff ID' }
+};
 const CACHE_KEY = "PFFP_DATA_CACHE";
 const CACHE_TTL = 60 * 60 * 1000; // 1 giờ (milliseconds)
 // ==========================================================
@@ -53,26 +61,27 @@ const floatDataLabels = {
     }
 };
 
-// ERROR HANDLING
+// ERROR HANDLING - chỉ log console, không hiện lên màn hình
 window.onerror = function (message, source, lineno, colno, error) {
-    var msg = "Script Error: " + message + " (Line: " + lineno + ")";
-    console.error(msg);
-    showError(msg);
-    return false;
+    console.error("Script Error:", message, "(Line:", lineno + ")");
+    return true;
 };
+window.addEventListener('unhandledrejection', function (event) {
+    console.warn("Unhandled promise rejection:", event.reason);
+    event.preventDefault();
+});
 
 // CONFIG TRANSLATIONS
 const translations = {
     vi: {
-        appTitle: "SẢN XUẤT CÀ PHÊ SINH THÁI VÀ CẢI THIỆN RỪNG TỰ NHIÊN", loading: "Đang tải dữ liệu...",
+        appTitle: "Sản xuất cà phê sinh thái và cải thiện rừng tự nhiên", loading: "Đang tải dữ liệu...",
         lblSelectOrg: "Vui lòng chọn tổ chức:", optSelectOrgFirst: "-- Chọn tổ chức trước --",
         lblUsername: "Chọn nhân viên:", lblPassword: "Mật khẩu:", btnLogin: "ĐĂNG NHẬP",
 
         loginErrorTitle: "Lỗi đăng nhập", loginErrorMsg: "Thông tin đăng nhập không đúng hoặc tài khoản chưa kích hoạt (Status != Act).",
-        kpi1: "Tổng số hộ", kpi2: "Tổng số lô", kpi3: "Tổng DT (ha)", kpi4: "Số cây che bóng có sẵn", kpi5: "Số cây che bóng được hỗ trợ đã trồng", kpi6: "Tổng số loài", kpi7: "Tổng nhóm hộ", kpi8: "Tỷ lệ hoàn thành", kpi9: "Tỷ lệ sống",
-
-
-        kpi10: "Tổng SL Đại trà (Tấn)", kpi11: "Tổng SL CLC (Tấn)",
+        kpi1: "Tổng số hộ", kpiFemale: "Nữ / Tổng", kpi2: "Tổng số lô", kpi3: "Tổng DT (ha)", kpi4: "Cây bóng có sẵn", kpi5: "Cây bóng đã trồng", kpi6: "Tổng số loài", kpi7: "Tổng nhóm hộ", kpi8: "Tỷ lệ hoàn thành", kpi9: "Tỷ lệ sống",
+        kpi10: "SL đại trà (T)", kpi11: "SL CLC (T)",
+        searchPlaceholder: "Tìm kiếm nông hộ, lô, mã ID...",
 
         // CẬP NHẬT FILTER VÀ CHART TITLE MỚI
         filterTitle: "Bộ lọc dữ liệu", filterYear: "Năm", filterYearSupport: "Năm hỗ trợ", filterVillage: "Nhóm hộ", filterStatus: "Trạng thái", filterSupported: "Hỗ trợ bởi", filterSupportedTypes: "Loại hỗ trợ", filterSpecies: "Loài cây", filterManageBy: "Quản lý bởi",
@@ -125,13 +134,14 @@ const translations = {
         greeting: "Xin chào,"
     },
     en: {
-        appTitle: "PROSPEROUS FARMERS AND FORESTS PARTNERSHIP",
+        appTitle: "Prosperous Farmers and Forests Partnership",
         loading: "Loading data...",
         lblSelectOrg: "Please select organization:", optSelectOrgFirst: "-- Select Organization First --",
         lblUsername: "Select Staff:", lblPassword: "Password:", btnLogin: "LOGIN",
         loginErrorTitle: "Login Error", loginErrorMsg: "Incorrect password or account inactive.",
-        kpi1: "Total Farmers", kpi2: "Total Plots", kpi3: "Total Area (ha)", kpi4: "Available Shade Trees (Before)", kpi5: "Planted Support Shade Trees", kpi6: "Total Species", kpi7: "Total Farmer Groups", kpi8: "Completion Rate", kpi9: "Survival Rate",
-        kpi10: "Total Cherry (Ton)", kpi11: "Total HQ (Ton)",
+        kpi1: "Total Farmers", kpiFemale: "Female / Total", kpi2: "Total Plots", kpi3: "Total Area (ha)", kpi4: "Available Shade Trees", kpi5: "Planted Shade Trees", kpi6: "Total Species", kpi7: "Total Farmer Groups", kpi8: "Completion Rate", kpi9: "Survival Rate",
+        kpi10: "Cherry Vol (T)", kpi11: "HQ Vol (T)",
+        searchPlaceholder: "Search farmers, plots, ID...",
 
         // NEW FILTERS & TITLES
         filterTitle: "Data Filters", filterYear: "Year", filterYearSupport: "Support Year", filterVillage: "Farmer Group", filterStatus: "Status", filterSupported: "Supported By", filterSupportedTypes: "Support Types", filterSpecies: "Species", filterManageBy: "Managed By",
@@ -318,16 +328,68 @@ function loadData(forceRefresh = false) {
         }
     }
 
-    console.log("Fetching from server...");
-    // GỌI API QUA FETCH
-    fetch(API_URL + "?action=getAllData")
-        .then(response => response.json())
-        .then(data => {
-            onDataLoaded(data, false);
-        })
-        .catch(error => {
+    console.log("Fetching from Supabase...");
+    Promise.all([
+        supabaseClient.from('farmers').select('*').limit(10000),
+        supabaseClient.from('plots').select('*').limit(10000),
+        supabaseClient.from('yearly_data').select('*').limit(10000),
+        supabaseClient.from('users').select('*').limit(10000),
+        supabaseClient.from('admin').select('*').limit(10000),
+        supabaseClient.from('drop_values').select('*').limit(10000),
+        supabaseClient.from('species').select('*').limit(10000),
+        supabaseClient.from('training_list').select('*').limit(10000)
+    ]).then(function (results) {
+        var hasError = results.some(function (r) { return r.error; });
+        if (hasError) {
+            var errMsg = results.filter(function (r) { return r.error; }).map(function (r) { return r.error.message; }).join('; ');
+            console.error('Supabase errors:', errMsg);
+            // Try offline fallback
+            if (typeof PFFP_DB !== 'undefined') {
+                return PFFP_DB.loadAllFromLocal().then(function (localData) {
+                    if (localData && localData.farmers && localData.farmers.length > 0) {
+                        console.log('Loaded from IndexedDB (offline fallback)');
+                        onDataLoaded(localData, true);
+                        showOfflineBadge();
+                    } else {
+                        showError('Supabase error: ' + errMsg);
+                    }
+                });
+            }
+            showError('Supabase error: ' + errMsg);
+            return;
+        }
+        var data = {
+            farmers: results[0].data || [],
+            plots: results[1].data || [],
+            yearly: results[2].data || [],
+            user: results[3].data || [],
+            admin: results[4].data || [],
+            drop: results[5].data || [],
+            species: results[6].data || [],
+            trainingList: results[7].data || []
+        };
+        onDataLoaded(data, false);
+        // Save to IndexedDB for offline use
+        if (typeof PFFP_DB !== 'undefined') {
+            PFFP_DB.saveAllToLocal(data).catch(function (e) { console.warn('IndexedDB save failed:', e); });
+        }
+    }).catch(function (error) {
+        console.error('Network error:', error);
+        // Try offline fallback
+        if (typeof PFFP_DB !== 'undefined') {
+            PFFP_DB.loadAllFromLocal().then(function (localData) {
+                if (localData && localData.farmers && localData.farmers.length > 0) {
+                    console.log('Loaded from IndexedDB (offline)');
+                    onDataLoaded(localData, true);
+                    showOfflineBadge();
+                } else {
+                    showError(error);
+                }
+            }).catch(function () { showError(error); });
+        } else {
             showError(error);
-        });
+        }
+    });
 }
 
 function refreshData() {
@@ -400,8 +462,9 @@ function handleLogin() {
         isLoggedIn = true; errorDiv.hide();
         let userName = user['Full name'] || user['Name'] || '';
         $('#userGreeting').css({ 'color': '#0A65C7', 'font-weight': 'bold' }).html(`<i class="fas fa-user-circle"></i> ${translations[currentLang].greeting} ${userName}`).show();
+        $('#headerUserName').html(`<i class="fas fa-user-circle"></i> ${userName}`);
         checkUserPermissions();
-        $('#loginSection').fadeOut(300, function () { $('#dashboardSection').fadeIn(300); applyFilter(); });
+        $('#loginSection').fadeOut(300, function () { $('#dashboardSection').fadeIn(300); applyFilter(); showProjectIntro(); });
     } else {
         errorDiv.text(translations[currentLang].loginErrorMsg).show();
     }
@@ -489,7 +552,7 @@ function checkUserPermissions() {
 }
 function logout() {
     isLoggedIn = false;
-    currentUser = null; $('#userGreeting').hide();
+    currentUser = null; $('#userGreeting').hide(); $('#headerUserName').html('');
     $('#dashboardSection').fadeOut(300, function () { $('#loginSection').fadeIn(300); $('#loginPassword').val(''); $('#loginUserSelect').val(''); $('.btn-org').removeClass('active'); initLoginScreen(rawData.user); });
 }
 
@@ -589,6 +652,7 @@ function resolveValue(key, value, tName) {
 
 function toggleLanguage() {
     currentLang = (currentLang === 'vi') ? 'en' : 'vi';
+    document.body.setAttribute('data-lang', currentLang);
     $('[data-i18n]').each(function () { let k = $(this).data('i18n'); if (translations[currentLang][k]) $(this).text(translations[currentLang][k]); });
     let iH = translations[currentLang].langBtn; $('#langBtn').html(iH); $('#loginLangIcon').html(iH);
 
@@ -596,6 +660,7 @@ function toggleLanguage() {
         let userName = currentUser['Full name'] ||
             currentUser['Name'] || '';
         $('#userGreeting').css({ 'color': '#0A65C7', 'font-weight': 'bold' }).html(`<i class="fas fa-user-circle"></i> ${translations[currentLang].greeting} ${userName}`);
+        $('#headerUserName').html(`<i class="fas fa-user-circle"></i> ${userName}`);
     }
 
     // Cập nhật label cho cả các filter mới
@@ -737,6 +802,8 @@ function applyFilter() {
 
 function updateUI(f, p, y) {
     $('#kpi1').text(f.length.toLocaleString());
+    let femaleCount = f.filter(i => (i['Gender'] || '').trim().toLowerCase() === 'nữ' || (i['Gender'] || '').trim().toLowerCase() === 'female' || (i['Gender'] || '').trim().toLowerCase() === 'f').length;
+    $('#kpiFemale').text(femaleCount + '/' + f.length);
     $('#kpi2').text(p.length.toLocaleString());
     let totalArea = p.reduce((s, i) => s + (parseFloat(i['Area (ha)']) || 0), 0);
     $('#kpi3').text(totalArea.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
@@ -1312,26 +1379,37 @@ async function deleteItem(type, id) {
 
     $('#loading').show();
 
-    // GỌI API XÓA
-    fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-            action: 'deleteData',
-            sheetName: type,
-            id: id
-        })
-    })
-        .then(res => res.json())
-        .then(res => {
-            $('#loading').fadeOut();
-            if (res.status === 'success') {
-                refreshData();
+    var mapping = TABLE_MAP[type];
+    if (!mapping) { showError('Unknown type: ' + type); return; }
+
+    if (navigator.onLine) {
+        supabaseClient.from(mapping.table).delete().eq(mapping.idCol, id)
+            .then(function (res) {
+                $('#loading').fadeOut();
+                if (res.error) {
+                    showError(res.error.message);
+                } else {
+                    if (typeof PFFP_DB !== 'undefined') {
+                        PFFP_DB.deleteFromLocal(mapping.table, id).catch(function () {});
+                    }
+                    refreshData();
+                    alert(translations[currentLang].deleteSuccess);
+                }
+            })
+            .catch(function (err) { $('#loading').fadeOut(); showError(err); });
+    } else {
+        // Offline: delete locally and queue for sync
+        if (typeof PFFP_DB !== 'undefined') {
+            PFFP_DB.deleteFromLocal(mapping.table, id).then(function () {
+                return PFFP_DB.addToSyncQueue({ table: mapping.table, action: 'delete', idCol: mapping.idCol, id: id });
+            }).then(function () {
+                $('#loading').fadeOut();
                 alert(translations[currentLang].deleteSuccess);
-            } else {
-                showError(res.message);
-            }
-        })
-        .catch(err => showError(err));
+                updateSyncPendingCount();
+                refreshData();
+            }).catch(function (err) { $('#loading').fadeOut(); showError(err); });
+        }
+    }
 }
 
 // Giữ lại tên cũ để đảm bảo tương thích nếu có chỗ gọi trực tiếp
@@ -1460,28 +1538,41 @@ function saveData() {
 
     $('#loading').show();
 
-    // GỌI API LƯU
-    fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-            action: 'saveData',
-            sheetName: formType,
-            formData: formData
-        })
-    })
-        .then(res => res.json())
-        .then(res => {
-            $('#loading').fadeOut();
-            if (res.status === 'success') {
+    var mapping = TABLE_MAP[formType];
+    if (!mapping) { showError('Unknown type: ' + formType); return; }
+
+    if (navigator.onLine) {
+        supabaseClient.from(mapping.table).upsert(formData, { onConflict: mapping.idCol })
+            .then(function (res) {
+                $('#loading').fadeOut();
+                if (res.error) {
+                    showError(res.error.message);
+                } else {
+                    if (typeof PFFP_DB !== 'undefined') {
+                        PFFP_DB.saveToLocal(mapping.table, formData).catch(function () {});
+                    }
+                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('editFormModal'));
+                    if (modalInstance) modalInstance.hide();
+                    refreshData();
+                    alert(translations[currentLang].updateSuccess);
+                }
+            })
+            .catch(function (err) { $('#loading').fadeOut(); showError(err); });
+    } else {
+        // Offline: save locally and queue for sync
+        if (typeof PFFP_DB !== 'undefined') {
+            PFFP_DB.saveToLocal(mapping.table, formData).then(function () {
+                return PFFP_DB.addToSyncQueue({ table: mapping.table, action: 'upsert', idCol: mapping.idCol, data: formData });
+            }).then(function () {
+                $('#loading').fadeOut();
                 const modalInstance = bootstrap.Modal.getInstance(document.getElementById('editFormModal'));
                 if (modalInstance) modalInstance.hide();
+                updateSyncPendingCount();
                 refreshData();
-                alert("Cập nhật thành công!");
-            } else {
-                showError(res.message);
-            }
-        })
-        .catch(err => showError(err));
+                alert(translations[currentLang].updateSuccess);
+            }).catch(function (err) { $('#loading').fadeOut(); showError(err); });
+        }
+    }
 }
 
 
@@ -1730,35 +1821,21 @@ async function saveUser() {
 
     $('#loading').show();
 
-    // GỌI API LƯU USER
-    fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-            action: 'saveData',
-            sheetName: 'User',
-            formData: formData
-        })
-    })
-        .then(res => res.json())
-        .then(res => {
+    supabaseClient.from('users').upsert(formData, { onConflict: 'Staff ID' })
+        .then(function (res) {
             $('#loading').fadeOut();
-
-            // --- ĐÂY LÀ ĐOẠN XỬ LÝ KẾT QUẢ ---
-            if (res.status === 'success') {
-                // 1. Ẩn Modal
-                bootstrap.Modal.getInstance(document.getElementById('userEditModal')).hide();
-
-                // 2. Tải lại dữ liệu (Dòng này sẽ kích hoạt việc cập nhật số Pending)
-                refreshData();
-
-                // 3. Thông báo thành công
-                alert("Lưu nhân viên thành công!");
+            if (res.error) {
+                showError(res.error.message);
             } else {
-                showError(res.message);
+                if (typeof PFFP_DB !== 'undefined') {
+                    PFFP_DB.saveToLocal('users', formData).catch(function () {});
+                }
+                bootstrap.Modal.getInstance(document.getElementById('userEditModal')).hide();
+                refreshData();
+                alert(translations[currentLang].updateSuccess);
             }
-            // ---------------------------------
         })
-        .catch(err => showError(err));
+        .catch(function (err) { $('#loading').fadeOut(); showError(err); });
 }
 
 
@@ -1769,26 +1846,20 @@ async function deleteUser(id) {
 
     $('#loading').show();
 
-    // GỌI API XÓA USER
-    fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-            action: 'deleteData',
-            sheetName: 'User',
-            id: id
-        })
-    })
-        .then(res => res.json())
-        .then(res => {
+    supabaseClient.from('users').delete().eq('Staff ID', id)
+        .then(function (res) {
             $('#loading').fadeOut();
-            if (res.status === 'success') {
-                refreshData();
-                alert("Đã xóa nhân viên!");
+            if (res.error) {
+                showError(res.error.message);
             } else {
-                showError(res.message);
+                if (typeof PFFP_DB !== 'undefined') {
+                    PFFP_DB.deleteFromLocal('users', id).catch(function () {});
+                }
+                refreshData();
+                alert(translations[currentLang].deleteSuccess);
             }
         })
-        .catch(err => showError(err));
+        .catch(function (err) { $('#loading').fadeOut(); showError(err); });
 }
 function showCustomConfirm(m, t) { return new Promise((r) => { const e = document.getElementById('confirmModal'); const b = bootstrap.Modal.getOrCreateInstance(e); const h = e.querySelector('.modal-header'); const i = document.getElementById('confirmIcon'); const o = document.getElementById('btnConfirmOk'); const c = document.getElementById('btnConfirmCancel'); document.getElementById('confirmMessage').innerText = m; c.innerText = translations[currentLang].btnCancel; o.innerText = translations[currentLang].btnOk; if (t === 'delete') { h.className = 'modal-header delete'; i.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i>'; o.className = 'btn btn-danger px-4'; } else { h.className = 'modal-header save'; i.innerHTML = '<i class="fas fa-question-circle text-primary"></i>'; o.className = 'btn btn-primary px-4'; } const cl = () => { o.removeEventListener('click', ok); e.removeEventListener('hidden.bs.modal', ca); }; const ok = () => { r(true); b.hide(); cl(); }; const ca = () => { r(false); cl(); }; o.addEventListener('click', ok); e.addEventListener('hidden.bs.modal', ca); b.show(); }); }
 function stripHtml(h) { var t = document.createElement("DIV"); t.innerHTML = h; return t.textContent || t.innerText || ""; }
@@ -1848,31 +1919,30 @@ window.submitForgotPassword = function () {
     btn.disabled = true;
     msgDiv.text('');
 
-    fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            action: "resetUserPassword",
-            staffId: staffId,
-            email: email
-        })
-    })
-        .then(response => response.json())
-        .then(res => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-
-            if (res.status === 'success') {
-                bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
-                alert("THÀNH CÔNG!\n\n" + res.message);
-                // Tải lại dữ liệu mới nhất từ server để cập nhật mật khẩu mới
-                refreshData();
+    // Client-side: verify email matches, generate new password, update via Supabase
+    var user = (rawData.user || []).find(function (u) { return String(u['Staff ID']).trim() === String(staffId).trim(); });
+    if (!user) {
+        btn.innerHTML = originalText; btn.disabled = false;
+        msgDiv.text("Không tìm thấy tài khoản."); return;
+    }
+    if (String(user['Email'] || '').trim().toLowerCase() !== email.trim().toLowerCase()) {
+        btn.innerHTML = originalText; btn.disabled = false;
+        msgDiv.text("Email không khớp với tài khoản."); return;
+    }
+    var newPass = Math.random().toString(36).slice(-8);
+    supabaseClient.from('users').update({ 'Password': newPass }).eq('Staff ID', staffId)
+        .then(function (res) {
+            btn.innerHTML = originalText; btn.disabled = false;
+            if (res.error) {
+                msgDiv.text("Lỗi: " + res.error.message);
             } else {
-                msgDiv.text(res.message);
+                bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
+                alert("THÀNH CÔNG!\n\nMật khẩu mới: " + newPass + "\nVui lòng ghi nhớ mật khẩu này.");
+                refreshData();
             }
         })
-        .catch(err => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
+        .catch(function (err) {
+            btn.innerHTML = originalText; btn.disabled = false;
             msgDiv.text("Lỗi kết nối: " + err);
         });
 };
@@ -1917,38 +1987,49 @@ window.submitRegistration = function () {
     btn.disabled = true;
     msgDiv.text('');
 
-    // Dữ liệu gửi đi
-    const formData = {
-        Organization: org,
-        FullName: name,
-        Email: email,
-        Phone: phone,
-        Password: pass
+    // Generate Staff ID
+    var orgCode = org;
+    var nextId = orgCode + '-01';
+    if (rawData.user) {
+        var regex = new RegExp('^' + orgCode + '-(\\d+)$', 'i');
+        var maxNum = 0;
+        rawData.user.forEach(function (u) {
+            var sid = String(u['Staff ID'] || '').trim();
+            var match = sid.match(regex);
+            if (match) { var num = parseInt(match[1], 10); if (!isNaN(num) && num > maxNum) maxNum = num; }
+        });
+        nextId = orgCode + '-' + String(maxNum + 1).padStart(2, '0');
+    }
+
+    var userData = {
+        'Staff ID': nextId,
+        'Full name': name,
+        'Organization': org,
+        'Email': email,
+        'Phone': phone,
+        'Password': pass,
+        'Status': 'Pending',
+        'Role': '',
+        'Authority': '',
+        'Position': '',
+        'Gender': '',
+        'View': '',
+        'Rule': ''
     };
 
-    // Gọi API (Dùng lại biến API_URL đã khai báo ở đầu file)
-    fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            action: "registerUser",
-            formData: formData
-        })
-    })
-        .then(response => response.json())
-        .then(res => {
+    supabaseClient.from('users').insert(userData)
+        .then(function (res) {
             btn.innerHTML = originalText;
             btn.disabled = false;
-
-            if (res.status === 'success') {
-                // Thành công
-                bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
-                alert("ĐĂNG KÝ THÀNH CÔNG!\n\nThông tin của bạn đã được gửi.\nVui lòng đợi Admin phê duyệt trước khi đăng nhập.");
+            if (res.error) {
+                msgDiv.text("Lỗi: " + res.error.message);
             } else {
-                // Lỗi từ server (ví dụ trùng email)
-                msgDiv.text(res.message);
+                bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
+                alert("ĐĂNG KY THÀNH CÔNG!\n\nThông tin của bạn đã được gửi.\nVui lòng đợi Admin phê duyệt trước khi đăng nhập.");
+                refreshData();
             }
         })
-        .catch(err => {
+        .catch(function (err) {
             btn.innerHTML = originalText;
             btn.disabled = false;
             msgDiv.text("Lỗi kết nối: " + err);
@@ -2016,4 +2097,329 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return String(text).replace(/[&<>"']/g, function (m) { return map[m]; });
+}
+
+// ==========================================
+// PROJECT INTRO MODAL
+// ==========================================
+function showProjectIntro() {
+    try {
+        var introModal = new bootstrap.Modal(document.getElementById('projectIntroModal'));
+        introModal.show();
+    } catch (e) {
+        console.warn('Could not show project intro:', e);
+    }
+}
+
+// ==========================================
+// KPI CROSS-LINK: Navigate to related table tab
+// ==========================================
+function navigateToTable(tabName, searchId) {
+    // 1. Switch to Dashboard main tab
+    var mainTabEl = document.getElementById('dashboard-main-tab');
+    if (mainTabEl) {
+        var mainTab = new bootstrap.Tab(mainTabEl);
+        mainTab.show();
+    }
+    // 2. Switch to the correct data sub-tab
+    var dataTabMap = {
+        'Farmers': 'farmers-tab',
+        'Plots': 'plots-tab',
+        'Yearly_Data': 'yearly-tab'
+    };
+    var dataTabId = dataTabMap[tabName];
+    if (dataTabId) {
+        setTimeout(function () {
+            var dataTabEl = document.getElementById(dataTabId);
+            if (dataTabEl) {
+                var dataTab = new bootstrap.Tab(dataTabEl);
+                dataTab.show();
+            }
+            // 3. Scroll to table and optionally highlight a row
+            setTimeout(function () {
+                var wrapper = document.querySelector('#' + dataTabId.replace('-tab', '-pane') + ' .dataTables_wrapper');
+                if (wrapper) {
+                    wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                if (searchId) {
+                    highlightTableRow(tabName, searchId);
+                }
+            }, 200);
+        }, 150);
+    }
+}
+
+function highlightTableRow(tabName, searchId) {
+    var dtInstance = null;
+    var idColIndex = -1;
+    if (tabName === 'Farmers') { dtInstance = dtFarmers; idColIndex = 2; }
+    else if (tabName === 'Plots') { dtInstance = dtPlots; idColIndex = 1; }
+    else if (tabName === 'Yearly_Data') { dtInstance = dtYearly; idColIndex = 1; }
+    if (!dtInstance) return;
+    // Search in DataTable and go to the page containing this row
+    var found = false;
+    dtInstance.rows().every(function (rowIdx) {
+        var data = this.data();
+        if (data && data[idColIndex] === searchId) {
+            var pageInfo = dtInstance.page.info();
+            var rowPage = Math.floor(rowIdx / pageInfo.length);
+            dtInstance.page(rowPage).draw(false);
+            setTimeout(function () {
+                var rowNode = dtInstance.row(rowIdx).node();
+                if (rowNode) {
+                    rowNode.classList.add('search-highlight-row');
+                    rowNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setTimeout(function () {
+                        rowNode.classList.remove('search-highlight-row');
+                    }, 3500);
+                }
+            }, 100);
+            found = true;
+        }
+    });
+    if (!found) {
+        // Fallback: search by DataTable search API
+        dtInstance.search(searchId).draw();
+    }
+}
+
+// ==========================================
+// SMART GLOBAL SEARCH
+// ==========================================
+(function () {
+    var searchInput, searchResults, searchClearBtn;
+    var searchDebounce = null;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        searchInput = document.getElementById('globalSearchInput');
+        searchResults = document.getElementById('searchResults');
+        searchClearBtn = document.getElementById('searchClearBtn');
+
+        if (!searchInput) return;
+
+        searchInput.addEventListener('input', function () {
+            clearTimeout(searchDebounce);
+            var query = this.value.trim();
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                searchClearBtn.style.display = 'none';
+                return;
+            }
+            searchClearBtn.style.display = '';
+            searchDebounce = setTimeout(function () {
+                performGlobalSearch(query);
+            }, 250);
+        });
+
+        searchInput.addEventListener('focus', function () {
+            if (this.value.trim().length >= 2) {
+                performGlobalSearch(this.value.trim());
+            }
+        });
+
+        document.addEventListener('click', function (e) {
+            if (searchResults && !searchResults.contains(e.target) && e.target !== searchInput) {
+                searchResults.style.display = 'none';
+            }
+        });
+    });
+
+    function performGlobalSearch(query) {
+        if (!rawData) return;
+        var results = [];
+        var q = query.toLowerCase();
+        var maxResults = 15;
+
+        // Search Farmers
+        (rawData.farmers || []).forEach(function (f) {
+            if (results.length >= maxResults) return;
+            var name = (f['Full_Name'] || '').toLowerCase();
+            var id = (f['Farmer_ID'] || '').toLowerCase();
+            var phone = (f['Phone_Number'] || '').toLowerCase();
+            var group = (f['Farmer_Group_Name'] || '').toLowerCase();
+            if (name.indexOf(q) >= 0 || id.indexOf(q) >= 0 || phone.indexOf(q) >= 0 || group.indexOf(q) >= 0) {
+                results.push({
+                    type: 'farmer',
+                    icon: 'fa-user',
+                    title: f['Full_Name'] || f['Farmer_ID'],
+                    subtitle: f['Farmer_ID'] + ' - ' + (f['Farmer_Group_Name'] || ''),
+                    id: f['Farmer_ID']
+                });
+            }
+        });
+
+        // Search Plots
+        (rawData.plots || []).forEach(function (p) {
+            if (results.length >= maxResults) return;
+            var name = (p['Plot_Name'] || '').toLowerCase();
+            var id = (p['Plot_Id'] || '').toLowerCase();
+            var place = (p['Place name'] || '').toLowerCase();
+            if (name.indexOf(q) >= 0 || id.indexOf(q) >= 0 || place.indexOf(q) >= 0) {
+                results.push({
+                    type: 'plot',
+                    icon: 'fa-map-marker-alt',
+                    title: p['Plot_Name'] || p['Plot_Id'],
+                    subtitle: p['Plot_Id'] + ' - ' + (p['Place name'] || '') + ' (' + (p['Area (ha)'] || '?') + ' ha)',
+                    id: p['Plot_Id'],
+                    farmerId: p['Farmer_ID']
+                });
+            }
+        });
+
+        // Search Yearly Data
+        (rawData.yearly || []).forEach(function (y) {
+            if (results.length >= maxResults) return;
+            var recId = (y['Record_Id'] || '').toLowerCase();
+            var fId = (y['Farmer_ID'] || '').toLowerCase();
+            var species = (y['Shade_Trees_Species'] || '').toLowerCase();
+            if (recId.indexOf(q) >= 0 || species.indexOf(q) >= 0) {
+                var farmerName = '';
+                if (farmersMap && farmersMap[y['Farmer_ID']]) farmerName = farmersMap[y['Farmer_ID']]['Full_Name'] || '';
+                results.push({
+                    type: 'yearly',
+                    icon: 'fa-calendar-alt',
+                    title: y['Record_Id'] + (farmerName ? ' - ' + farmerName : ''),
+                    subtitle: (y['Year'] || '') + ' | ' + (y['Shade_Trees_Species'] || ''),
+                    id: y['Record_Id'],
+                    farmerId: y['Farmer_ID']
+                });
+            }
+        });
+
+        // Render results
+        renderSearchResults(results, query);
+    }
+
+    function renderSearchResults(results, query) {
+        if (!searchResults) return;
+        if (results.length === 0) {
+            searchResults.innerHTML = '<div class="search-no-results"><i class="fas fa-search"></i> ' +
+                (currentLang === 'vi' ? 'Không tìm thấy kết quả' : 'No results found') + '</div>';
+            searchResults.style.display = 'block';
+            return;
+        }
+
+        var html = '';
+        results.forEach(function (r) {
+            html += '<div class="search-result-item" onclick="onSearchResultClick(\'' + escapeHtml(r.type) + '\', \'' + escapeHtml(r.id) + '\', \'' + escapeHtml(r.farmerId || '') + '\')">';
+            html += '<div class="result-icon"><i class="fas ' + r.icon + '"></i></div>';
+            html += '<div class="result-text">';
+            html += '<div class="result-title">' + highlightMatch(escapeHtml(r.title), query) + '</div>';
+            html += '<div class="result-subtitle">' + escapeHtml(r.subtitle) + '</div>';
+            html += '</div></div>';
+        });
+        searchResults.innerHTML = html;
+        searchResults.style.display = 'block';
+    }
+
+    function highlightMatch(text, query) {
+        if (!query) return text;
+        var regex = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        return text.replace(regex, '<strong style="color:#2E7D32;">$1</strong>');
+    }
+})();
+
+function onSearchResultClick(type, id, farmerId) {
+    document.getElementById('searchResults').style.display = 'none';
+    document.getElementById('globalSearchInput').value = '';
+    document.getElementById('searchClearBtn').style.display = 'none';
+
+    if (type === 'farmer') {
+        // Navigate to Farmers tab and highlight row, then open detail
+        navigateToTable('Farmers', id);
+        setTimeout(function () {
+            var farmer = (rawData.farmers || []).find(function (f) { return f['Farmer_ID'] === id; });
+            if (farmer && typeof showDetail === 'function') {
+                showDetail(farmer, 'Farmers');
+            }
+        }, 600);
+    } else if (type === 'plot') {
+        // Navigate to Plots tab and highlight the plot row
+        navigateToTable('Plots', id);
+        setTimeout(function () {
+            var farmerOwner = (rawData.farmers || []).find(function (f) { return f['Farmer_ID'] === farmerId; });
+            if (farmerOwner && typeof showDetail === 'function') {
+                showDetail(farmerOwner, 'Farmers');
+            }
+        }, 600);
+    } else if (type === 'yearly') {
+        // Navigate to Yearly Data tab and highlight the row
+        navigateToTable('Yearly_Data', id);
+        setTimeout(function () {
+            var farmer = (rawData.farmers || []).find(function (f) { return f['Farmer_ID'] === farmerId; });
+            if (farmer && typeof showDetail === 'function') {
+                showDetail(farmer, 'Farmers');
+            }
+        }, 600);
+    }
+}
+
+function clearGlobalSearch() {
+    var input = document.getElementById('globalSearchInput');
+    var results = document.getElementById('searchResults');
+    var clearBtn = document.getElementById('searchClearBtn');
+    if (input) input.value = '';
+    if (results) results.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (input) input.focus();
+}
+
+// ==========================================
+// OFFLINE BADGE SUPPORT
+// ==========================================
+function showOfflineBadge() {
+    var badge = document.getElementById('offlineBadge');
+    if (badge) badge.style.display = '';
+    updateSyncPendingCount();
+}
+
+function hideOfflineBadge() {
+    var badge = document.getElementById('offlineBadge');
+    if (badge) badge.style.display = 'none';
+}
+
+function updateSyncPendingCount() {
+    if (typeof PFFP_DB !== 'undefined' && PFFP_DB.getSyncQueueCount) {
+        PFFP_DB.getSyncQueueCount().then(function (count) {
+            var el = document.getElementById('syncPending');
+            if (el) {
+                if (count > 0) {
+                    el.textContent = count;
+                    el.style.display = '';
+                } else {
+                    el.style.display = 'none';
+                }
+            }
+        });
+    }
+}
+
+// Online/Offline listeners
+window.addEventListener('online', function () {
+    hideOfflineBadge();
+    if (typeof PFFP_DB !== 'undefined' && PFFP_DB.processSyncQueue && typeof supabaseClient !== 'undefined') {
+        var syncBadge = document.getElementById('syncingBadge');
+        if (syncBadge) syncBadge.style.display = '';
+        PFFP_DB.processSyncQueue(supabaseClient).then(function () {
+            if (syncBadge) syncBadge.style.display = 'none';
+            if (typeof loadData === 'function') loadData(true);
+        }).catch(function () {
+            if (syncBadge) syncBadge.style.display = 'none';
+        });
+    }
+});
+
+window.addEventListener('offline', function () {
+    showOfflineBadge();
+});
+
+// Service Worker Registration
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').then(function (reg) {
+            console.log('SW registered:', reg.scope);
+        }).catch(function (err) {
+            console.warn('SW registration failed:', err);
+        });
+    });
 }
