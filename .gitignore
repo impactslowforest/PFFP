@@ -1,0 +1,27 @@
+# PocketBase binary (download from pocketbase.io)
+pocketbase/pocketbase.exe
+pocketbase/pocketbase
+
+# PocketBase database (contains sensitive farmer data)
+pocketbase/pb_data/
+
+# Excel data files (sensitive)
+*.xlsx
+*.xls
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+_UL/
+_ul/
+
+# IDE
+.vscode/
+*.code-workspace
+
+# Temp/cache
+*.tmp
+*.log
+__pycache__/
+*.pyc
