@@ -2,7 +2,8 @@
     "name": "PFFP Dashboard - Prosperous Farmers & Forests",
     "short_name": "PFFP",
     "description": "Coffee farming management dashboard for WWF/Slow Forest",
-    "start_url": "./index.html",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
     "orientation": "any",
     "background_color": "#ffffff",
@@ -22,5 +23,6 @@
         }
     ],
     "categories": ["productivity", "utilities"],
-    "lang": "vi"
+    "lang": "vi",
+    "prefer_related_applications": false
 }

@@ -189,7 +189,17 @@ const translations = {
         lblNGroups: "nhóm",
         lblPermDetail: "Phân quyền chi tiết",
         lblTabAccess: "Tab truy cập",
-        lblOperations: "Thao tác"
+        lblOperations: "Thao tác",
+        btnInstallApp: "Cài đặt ứng dụng",
+        installBannerTitle: "Cài đặt PFFP Dashboard",
+        installBannerMsg: "Thêm vào màn hình chính để truy cập nhanh hơn",
+        btnInstall: "Cài đặt",
+        btnDismiss: "Để sau",
+        btnBackup: "Sao lưu dữ liệu",
+        backupTitle: "Sao lưu dữ liệu",
+        backupSuccess: "Đã xuất file sao lưu thành công!",
+        backupEmpty: "Không có dữ liệu để sao lưu",
+        swipeBackupHint: "Vuốt sang trái để sao lưu dữ liệu"
     },
     en: {
         appTitle: "Prosperous Farmers and Forests Partnership",
@@ -270,7 +280,17 @@ const translations = {
         lblNGroups: "groups",
         lblPermDetail: "Permission Details",
         lblTabAccess: "Tab Access",
-        lblOperations: "Operations"
+        lblOperations: "Operations",
+        btnInstallApp: "Install App",
+        installBannerTitle: "Install PFFP Dashboard",
+        installBannerMsg: "Add to home screen for quick access",
+        btnInstall: "Install",
+        btnDismiss: "Later",
+        btnBackup: "Backup Data",
+        backupTitle: "Data Backup",
+        backupSuccess: "Backup file exported successfully!",
+        backupEmpty: "No data to backup",
+        swipeBackupHint: "Swipe left to backup data"
 
     }
 };
@@ -7568,4 +7588,221 @@ function formatAiResponse(text) {
     // Convert newlines to <br>
     text = text.replace(/\n/g, '<br>');
     return text;
+}
+
+// ==========================================
+// PWA INSTALL BANNER (PC & Mobile)
+// ==========================================
+var deferredInstallPrompt = null;
+var installBannerDismissed = false;
+
+window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (!installBannerDismissed && !localStorage.getItem('pffp_install_dismissed')) {
+        setTimeout(showInstallBanner, 2000);
+    }
+});
+
+window.addEventListener('appinstalled', function () {
+    deferredInstallPrompt = null;
+    hideInstallBanner();
+    console.log('[PWA] App installed');
+});
+
+function showInstallBanner() {
+    if (!deferredInstallPrompt || document.getElementById('pwaInstallBanner')) return;
+    var t = translations[currentLang] || translations.vi;
+    var banner = document.createElement('div');
+    banner.id = 'pwaInstallBanner';
+    banner.className = 'pwa-install-banner';
+    banner.innerHTML =
+        '<div class="pwa-install-icon"><i class="fas fa-mobile-alt"></i></div>' +
+        '<div class="pwa-install-text">' +
+            '<strong>' + (t.installBannerTitle || 'Install PFFP Dashboard') + '</strong>' +
+            '<small>' + (t.installBannerMsg || 'Add to home screen') + '</small>' +
+        '</div>' +
+        '<div class="pwa-install-actions">' +
+            '<button class="btn btn-sm btn-success pwa-install-btn" onclick="triggerInstall()">' +
+                '<i class="fas fa-download"></i> ' + (t.btnInstall || 'Install') +
+            '</button>' +
+            '<button class="btn btn-sm btn-outline-secondary pwa-install-dismiss" onclick="dismissInstallBanner()">' +
+                (t.btnDismiss || 'Later') +
+            '</button>' +
+        '</div>';
+    document.body.appendChild(banner);
+    setTimeout(function () { banner.classList.add('show'); }, 50);
+}
+
+function triggerInstall() {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(function (choiceResult) {
+        if (choiceResult.outcome === 'accepted') {
+            console.log('[PWA] User accepted install');
+        }
+        deferredInstallPrompt = null;
+        hideInstallBanner();
+    });
+}
+
+function dismissInstallBanner() {
+    installBannerDismissed = true;
+    localStorage.setItem('pffp_install_dismissed', '1');
+    hideInstallBanner();
+}
+
+function hideInstallBanner() {
+    var banner = document.getElementById('pwaInstallBanner');
+    if (banner) {
+        banner.classList.remove('show');
+        setTimeout(function () { banner.remove(); }, 300);
+    }
+}
+
+// ==========================================
+// SWIPE LEFT/RIGHT → BACKUP (instead of exit app)
+// ==========================================
+(function initSwipeBackup() {
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var touchStartTime = 0;
+    var SWIPE_THRESHOLD = 100;
+    var SWIPE_TIME_LIMIT = 500;
+    var VERTICAL_LIMIT = 80;
+
+    document.addEventListener('touchstart', function (e) {
+        if (e.touches.length !== 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+    }, { passive: true });
+
+    document.addEventListener('touchend', function (e) {
+        if (!touchStartX) return;
+        var deltaX = e.changedTouches[0].clientX - touchStartX;
+        var deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+        var elapsed = Date.now() - touchStartTime;
+
+        // Ignore if inside modal, scrollable table, map, or AI chat
+        var target = e.target;
+        if (target.closest('.modal, .table-responsive, .leaflet-container, .ai-chat-panel, input, textarea, select')) {
+            touchStartX = 0;
+            return;
+        }
+
+        if (elapsed < SWIPE_TIME_LIMIT && deltaY < VERTICAL_LIMIT) {
+            if (deltaX < -SWIPE_THRESHOLD) {
+                // Swipe LEFT → Backup
+                e.preventDefault();
+                showBackupConfirm();
+            } else if (deltaX > SWIPE_THRESHOLD) {
+                // Swipe RIGHT → also Backup (both directions)
+                e.preventDefault();
+                showBackupConfirm();
+            }
+        }
+        touchStartX = 0;
+    }, { passive: false });
+})();
+
+// ==========================================
+// BACKUP FUNCTIONALITY - Export all PocketBase data
+// ==========================================
+function showBackupConfirm() {
+    var t = translations[currentLang] || translations.vi;
+    showConfirmDialog(
+        '<i class="fas fa-database fa-2x text-success mb-2"></i>',
+        t.backupTitle || 'Backup Data',
+        'btn-success',
+        function () { performBackup(); }
+    );
+}
+
+function performBackup() {
+    var t = translations[currentLang] || translations.vi;
+    var tables = ['farmers', 'plots', 'yearly_data', 'supported', 'species', 'training_list', 'op6_activities_list', 'admin', 'drop_values'];
+    var backupData = { exportDate: new Date().toISOString(), appVersion: 'PFFP Dashboard', tables: {} };
+    var completed = 0;
+    var total = tables.length;
+
+    // Show loading
+    var loadingEl = document.getElementById('loading');
+    if (loadingEl) loadingEl.style.display = 'flex';
+
+    tables.forEach(function (tableName) {
+        fetch(PB_URL + '/api/collections/' + tableName + '/records?perPage=999999')
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                backupData.tables[tableName] = {
+                    totalItems: data.totalItems || 0,
+                    items: data.items || []
+                };
+            })
+            .catch(function (err) {
+                console.warn('[Backup] Failed to fetch ' + tableName + ':', err);
+                backupData.tables[tableName] = { totalItems: 0, items: [], error: err.message };
+            })
+            .finally(function () {
+                completed++;
+                if (completed === total) {
+                    finishBackup(backupData);
+                }
+            });
+    });
+}
+
+function finishBackup(backupData) {
+    var t = translations[currentLang] || translations.vi;
+    var loadingEl = document.getElementById('loading');
+    if (loadingEl) loadingEl.style.display = 'none';
+
+    // Count total records
+    var totalRecords = 0;
+    Object.keys(backupData.tables).forEach(function (k) {
+        totalRecords += backupData.tables[k].totalItems || 0;
+    });
+
+    if (totalRecords === 0) {
+        showToast(t.backupEmpty || 'No data to backup', 'warning');
+        return;
+    }
+
+    // Generate filename with timestamp
+    var now = new Date();
+    var dateStr = now.getFullYear() + '' +
+        String(now.getMonth() + 1).padStart(2, '0') +
+        String(now.getDate()).padStart(2, '0') + '_' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0');
+    var filename = 'PFFP_Backup_' + dateStr + '.json';
+
+    // Download JSON file
+    var blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast((t.backupSuccess || 'Backup exported!') + ' (' + totalRecords.toLocaleString() + ' records)', 'success');
+}
+
+function showConfirmDialog(iconHtml, message, btnClass, onConfirm) {
+    var el = document.getElementById('confirmIcon');
+    var msgEl = document.getElementById('confirmMessage');
+    var okBtn = document.getElementById('btnConfirmOk');
+    if (el) el.innerHTML = iconHtml;
+    if (msgEl) msgEl.textContent = message;
+    if (okBtn) {
+        okBtn.className = 'btn px-4 ' + btnClass;
+        okBtn.onclick = function () {
+            bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+            if (onConfirm) onConfirm();
+        };
+    }
+    new bootstrap.Modal(document.getElementById('confirmModal')).show();
 }

@@ -5,7 +5,7 @@
  *   - PocketBase API calls: Network-First (fallback to IndexedDB in app code)
  */
 
-var CACHE_NAME = 'pffp-cache-v38';
+var CACHE_NAME = 'pffp-cache-v39';
 
 var PRECACHE_URLS = [
     './',
