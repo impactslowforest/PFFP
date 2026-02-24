@@ -1,0 +1,43 @@
+name: Deploy PFFP to VPS
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'pocketbase/pb_public/**'
+      - 'pocketbase/pb_hooks/**'
+      - 'pocketbase/pb_migrations/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy frontend to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "pocketbase/pb_public/*"
+          target: "/var/www/pffp/"
+          strip_components: 2
+
+      - name: Deploy hooks & migrations, restart PocketBase
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            # Copy hooks
+            cp -f /var/www/pffp/pb_hooks/* /opt/pffp/pb_hooks/ 2>/dev/null || true
+
+            # Restart PocketBase to pick up hook changes
+            systemctl restart pffp
+
+            # Verify
+            sleep 2
+            curl -sf http://127.0.0.1:8095/api/health && echo "PFFP is healthy!" || echo "PFFP health check failed!"
