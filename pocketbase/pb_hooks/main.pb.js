@@ -289,11 +289,16 @@ routerAdd("POST", "/api/forgot-password", (e) => {
 // ROUTE: POST /api/custom/reset-password
 // ============================================================
 routerAdd("POST", "/api/custom/reset-password", (e) => {
+    console.log("[PFFP] Forgot password request received");
+
     var body = e.requestInfo().body;
     var staffId = String(body.staffId || "").trim();
     var email = String(body.email || "").trim().toLowerCase();
 
+    console.log("[PFFP] Request data - Staff ID: " + staffId + ", Email: " + email);
+
     if (!staffId || !email) {
+        console.log("[PFFP] Missing staff ID or email");
         return e.json(400, {
             success: false,
             error: "Staff ID and email are required"
@@ -303,12 +308,17 @@ routerAdd("POST", "/api/custom/reset-password", (e) => {
     var record;
     try {
         record = $app.findFirstRecordByData("app_users", "Staff_ID", staffId);
+        console.log("[PFFP] Found user record");
     } catch (err) {
+        console.log("[PFFP] User not found: " + staffId);
         return e.json(404, { success: false, error: "Account not found" });
     }
 
     var storedEmail = String(record.getString("Email") || "").trim().toLowerCase();
+    console.log("[PFFP] Stored email: " + storedEmail + ", Provided email: " + email);
+
     if (storedEmail !== email) {
+        console.log("[PFFP] Email mismatch!");
         return e.json(400, { success: false, error: "Email does not match" });
     }
 
@@ -323,28 +333,42 @@ routerAdd("POST", "/api/custom/reset-password", (e) => {
     record.set("PasswordSalt", salt);
     record.set("Password", "********");
     $app.save(record);
+    console.log("[PFFP] Password updated in database");
 
-    // Send email with new password (use same format as registration email)
+    // Send email - copy EXACT format from registration (which works)
+    var fullName = record.getString("Full_name");
+    var appUrl = $app.settings().meta.appUrl || "https://pffp.slowforest.vn";
+
     try {
-        var fullName = record.getString("Full_name");
-        var appUrl = $app.settings().meta.appUrl || "https://pffp.slowforest.vn";
+        console.log("[PFFP] Attempting to send email to: " + email);
 
-        var resetMsg = new MailerMessage({
+        // Send to user
+        var userMsg = new MailerMessage({
             from: {address: $app.settings().meta.senderAddress, name: $app.settings().meta.senderName},
             to: [{address: email}],
-            subject: "[PFFP] Mat khau moi - Password Reset",
-            text: "Xin chao " + fullName + ",\n\nBan da yeu cau dat lai mat khau.\n\nThong tin dang nhap moi:\nMa NV: " + staffId + "\nEmail: " + email + "\nMat khau moi: " + newPassword + "\n\nVui long ghi nho mat khau nay va dang nhap tai:\n" + appUrl + "/#/login\n\nNeu ban khong yeu cau dat lai mat khau, vui long lien he Admin ngay."
+            subject: "[PFFP] Mat khau moi",
+            text: "Xin chao " + fullName + ",\n\nMat khau moi cua ban:\n\nMa NV: " + staffId + "\nEmail: " + email + "\nMat khau: " + newPassword + "\n\nVui long ghi nho mat khau.\n\nDang nhap: " + appUrl + "/#/login"
         });
 
-        $app.newMailClient().send(resetMsg);
-        console.log("[PFFP] Sent password reset email to: " + email + " (Staff ID: " + staffId + ")");
+        $app.newMailClient().send(userMsg);
+        console.log("[PFFP] ✓ Email sent successfully to: " + email);
+
+        // Also send to admin for debugging
+        var adminMsg = new MailerMessage({
+            from: {address: $app.settings().meta.senderAddress, name: $app.settings().meta.senderName},
+            to: [{address: "trung@slowforest.com"}],
+            subject: "[PFFP DEBUG] Password reset for " + staffId,
+            text: "User " + fullName + " (" + staffId + ") requested password reset.\nEmail: " + email + "\nNew password: " + newPassword
+        });
+        $app.newMailClient().send(adminMsg);
+        console.log("[PFFP] ✓ Admin notification sent");
 
         return e.json(200, {
             success: true,
             newPassword: newPassword
         });
     } catch (err) {
-        console.error("[PFFP] Password reset email error: " + err);
+        console.error("[PFFP] ✗ Email sending failed: " + String(err));
         return e.json(500, {
             success: false,
             error: "Loi gui email: " + String(err)
