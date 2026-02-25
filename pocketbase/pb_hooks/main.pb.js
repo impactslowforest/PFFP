@@ -324,27 +324,16 @@ routerAdd("POST", "/api/custom/reset-password", (e) => {
     record.set("Password", "********");
     $app.save(record);
 
-    // Send email with new password
+    // Send email with new password (use same format as registration email)
     try {
         var fullName = record.getString("Full_name");
         var appUrl = $app.settings().meta.appUrl || "https://pffp.slowforest.vn";
 
         var resetMsg = new MailerMessage({
-            from: {
-                address: $app.settings().meta.senderAddress,
-                name: $app.settings().meta.senderName
-            },
+            from: {address: $app.settings().meta.senderAddress, name: $app.settings().meta.senderName},
             to: [{address: email}],
-            subject: "[PFFP] Mat khau moi cua ban",
-            text: "Xin chao " + fullName + ",\n\n" +
-                  "Ban da yeu cau dat lai mat khau.\n\n" +
-                  "Thong tin dang nhap moi:\n\n" +
-                  "Ma NV (Staff ID): " + staffId + "\n" +
-                  "Email: " + email + "\n" +
-                  "Mat khau moi: " + newPassword + "\n\n" +
-                  "Vui long ghi nho mat khau nay va dang nhap tai:\n" +
-                  appUrl + "/#/login\n\n" +
-                  "Neu ban khong yeu cau dat lai mat khau, vui long lien he Admin ngay."
+            subject: "[PFFP] Mat khau moi - Password Reset",
+            text: "Xin chao " + fullName + ",\n\nBan da yeu cau dat lai mat khau.\n\nThong tin dang nhap moi:\nMa NV: " + staffId + "\nEmail: " + email + "\nMat khau moi: " + newPassword + "\n\nVui long ghi nho mat khau nay va dang nhap tai:\n" + appUrl + "/#/login\n\nNeu ban khong yeu cau dat lai mat khau, vui long lien he Admin ngay."
         });
 
         $app.newMailClient().send(resetMsg);
@@ -352,15 +341,13 @@ routerAdd("POST", "/api/custom/reset-password", (e) => {
 
         return e.json(200, {
             success: true,
-            newPassword: newPassword  // Return for backward compatibility (but frontend won't show it)
+            newPassword: newPassword
         });
     } catch (err) {
         console.error("[PFFP] Password reset email error: " + err);
-        // Still return success even if email fails, password was changed
-        return e.json(200, {
-            success: true,
-            newPassword: newPassword,
-            emailWarning: "Mat khau da thay doi nhung email khong gui duoc. Vui long lien he Admin."
+        return e.json(500, {
+            success: false,
+            error: "Loi gui email: " + String(err)
         });
     }
 });
