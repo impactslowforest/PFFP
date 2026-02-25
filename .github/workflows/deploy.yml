@@ -3,10 +3,7 @@ name: Deploy PFFP to VPS
 on:
   push:
     branches: [master]
-    paths:
-      - 'pocketbase/pb_public/**'
-      - 'pocketbase/pb_hooks/**'
-      - 'pocketbase/pb_migrations/**'
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   deploy:
