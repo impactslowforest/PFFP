@@ -4228,26 +4228,34 @@ window.submitForgotPassword = function () {
     btn.disabled = true;
     msgDiv.text('');
 
+    console.log('[FRONTEND] Sending forgot password request:', { staffId: staffId, email: email });
+
     fetch(PB_URL + '/api/custom/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ staffId: staffId, email: email })
     })
-    .then(function (res) { return res.json(); })
+    .then(function (res) {
+        console.log('[FRONTEND] Response status:', res.status);
+        return res.json();
+    })
     .then(function (data) {
+        console.log('[FRONTEND] Response data:', data);
         btn.innerHTML = originalText; btn.disabled = false;
         if (data.success && data.newPassword) {
             bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
-            // SECURITY: Don't show password on screen! Only send via email.
-            showToast("✓ Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.", 5000);
+            // TEMPORARY: Show password in alert for debugging
+            alert("DEBUG: Endpoint hoạt động!\n\nMật khẩu mới: " + data.newPassword + "\n\nEmail PHẢI được gửi đến:\n- " + email + "\n- trung@slowforest.com\n\nVui lòng check 2 hộp thư này!");
             refreshData();
         } else {
-            msgDiv.text(data.error || "Lỗi không xác định.");
+            msgDiv.text("LỖI: " + (data.error || "Không xác định") + "\n\nChi tiết: " + JSON.stringify(data));
+            console.error('[FRONTEND] Error response:', data);
         }
     })
     .catch(function (err) {
         btn.innerHTML = originalText; btn.disabled = false;
-        msgDiv.text("Lỗi kết nối: " + err.message);
+        msgDiv.text("LỖI KẾT NỐI: " + err.message);
+        console.error('[FRONTEND] Fetch error:', err);
     });
 };
 
