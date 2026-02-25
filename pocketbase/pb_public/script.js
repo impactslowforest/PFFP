@@ -378,7 +378,7 @@ function escapeHtml(text) {
 // ==========================================================
 document.addEventListener("DOMContentLoaded", function () {
     var attempts = 0;
-    var maxAttempts = 100;
+    var maxAttempts = 300; // 30 seconds (was 10s) - for slow CDN in incognito mode
     var checkInterval = setInterval(function () {
         if (typeof jQuery !== 'undefined' && typeof Chart !== 'undefined') {
             clearInterval(checkInterval);
@@ -388,7 +388,7 @@ document.addEventListener("DOMContentLoaded", function () {
             attempts++;
             if (attempts >= maxAttempts) {
                 clearInterval(checkInterval);
-                var msg = "Lỗi kết nối: Không thể tải thư viện hệ thống (jQuery/ChartJS). Vui lòng nhấn F5.";
+                var msg = "Lỗi kết nối: Không thể tải thư viện hệ thống (jQuery/ChartJS). Vui lòng kiểm tra kết nối mạng và nhấn F5.";
                 console.error(msg);
                 showError(msg);
             }
