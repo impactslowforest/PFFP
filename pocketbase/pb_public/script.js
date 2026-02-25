@@ -4238,7 +4238,8 @@ window.submitForgotPassword = function () {
         btn.innerHTML = originalText; btn.disabled = false;
         if (data.success && data.newPassword) {
             bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
-            showPasswordModal(data.newPassword, "Mật khẩu mới đã được tạo.\nVui lòng ghi nhớ mật khẩu này.");
+            // SECURITY: Don't show password on screen! Only send via email.
+            showToast("✓ Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.", 5000);
             refreshData();
         } else {
             msgDiv.text(data.error || "Lỗi không xác định.");
@@ -4328,7 +4329,8 @@ window.submitRegistration = function () {
                 msgDiv.text("Lỗi: " + res.error.message);
             } else {
                 bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
-                showPasswordModal("(Đã gửi email)", "Thông tin của bạn đã được gửi.\nMật khẩu đã được gửi đến email của bạn.\nVui lòng đợi Admin phê duyệt trước khi đăng nhập.");
+                // SECURITY: Don't show password on screen! Only send via email.
+                showToast("✓ Đăng ký thành công! Mật khẩu đã được gửi đến email của bạn. Vui lòng đợi Admin phê duyệt.", 5000);
                 refreshData();
             }
         })
