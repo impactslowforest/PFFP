@@ -4244,7 +4244,7 @@ window.submitForgotPassword = function () {
         btn.innerHTML = originalText; btn.disabled = false;
         if (data.success && data.newPassword) {
             bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
-            showToast("✓ Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!", 5000);
+            alert("✅ Thành công!\n\nMật khẩu mới đã được gửi đến email của bạn.\nVui lòng kiểm tra hộp thư.\n\n🇬🇧 Success!\n\nNew password has been sent to your email.\nPlease check your inbox.");
             refreshData();
         } else {
             msgDiv.text("LỖI: " + (data.error || "Không xác định"));
