@@ -1279,6 +1279,33 @@
 <!-- Toast notification -->
 <div id="toastContainer"></div>
 
+<!-- Password Modal (copyable password display) -->
+<div class="modal fade" id="passwordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border: 3px solid #2E7D32;">
+            <div class="modal-header" style="background: #2E7D32; color: white;">
+                <h5 class="modal-title"><i class="fas fa-check-circle"></i> PFFP Slow Forest Share database says</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <h3 class="text-success mb-3">THÀNH CÔNG!</h3>
+                <p id="modalMessage" class="mb-2"></p>
+                <div style="background: #fff3cd; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                    <input type="text" id="modalPassword" readonly
+                           style="width: 100%; border: 2px dashed #dc3545; padding: 15px; font-size: 24px;
+                                  font-weight: bold; color: #dc3545; text-align: center; background: white;
+                                  font-family: 'Courier New', Courier, monospace; cursor: pointer;"
+                           onclick="this.select(); document.execCommand('copy'); showCopyNotification();">
+                </div>
+                <p class="text-danger mb-2"><small><i class="fas fa-hand-pointer"></i> Click vào ô trên để copy mật khẩu</small></p>
+                <div id="copyToast" style="display:none; background: #4CAF50; color: white; padding: 8px 16px; border-radius: 4px; margin-top: 10px;">
+                    ✓ Đã copy mật khẩu!
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 </body>
 
 </html>

@@ -4238,7 +4238,7 @@ window.submitForgotPassword = function () {
         btn.innerHTML = originalText; btn.disabled = false;
         if (data.success && data.newPassword) {
             bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
-            alert("THÀNH CÔNG!\n\nMật khẩu mới: " + data.newPassword + "\nVui lòng ghi nhớ mật khẩu này.");
+            showPasswordModal(data.newPassword, "Mật khẩu mới đã được tạo.\nVui lòng ghi nhớ mật khẩu này.");
             refreshData();
         } else {
             msgDiv.text(data.error || "Lỗi không xác định.");
@@ -4328,7 +4328,7 @@ window.submitRegistration = function () {
                 msgDiv.text("Lỗi: " + res.error.message);
             } else {
                 bootstrap.Modal.getInstance(document.getElementById('registerModal')).hide();
-                alert("ĐĂNG KY THÀNH CÔNG!\n\nThông tin của bạn đã được gửi.\nVui lòng đợi Admin phê duyệt trước khi đăng nhập.");
+                showPasswordModal("(Đã gửi email)", "Thông tin của bạn đã được gửi.\nMật khẩu đã được gửi đến email của bạn.\nVui lòng đợi Admin phê duyệt trước khi đăng nhập.");
                 refreshData();
             }
         })
@@ -7805,4 +7805,23 @@ function showConfirmDialog(iconHtml, message, btnClass, onConfirm) {
         };
     }
     new bootstrap.Modal(document.getElementById('confirmModal')).show();
+}
+
+// ==========================================
+// PASSWORD MODAL - Copyable password display
+// ==========================================
+function showPasswordModal(password, message) {
+    document.getElementById("modalPassword").value = password;
+    document.getElementById("modalMessage").textContent = message || "";
+    var modal = new bootstrap.Modal(document.getElementById("passwordModal"));
+    modal.show();
+}
+
+function showCopyNotification() {
+    var toast = document.getElementById("copyToast");
+    if (!toast) return;
+    toast.style.display = "block";
+    setTimeout(function() {
+        toast.style.display = "none";
+    }, 2000);
 }
