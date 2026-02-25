@@ -4244,11 +4244,10 @@ window.submitForgotPassword = function () {
         btn.innerHTML = originalText; btn.disabled = false;
         if (data.success && data.newPassword) {
             bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
-            // TEMPORARY: Show password in alert for debugging
-            alert("DEBUG: Endpoint hoạt động!\n\nMật khẩu mới: " + data.newPassword + "\n\nEmail PHẢI được gửi đến:\n- " + email + "\n- trung@slowforest.com\n\nVui lòng check 2 hộp thư này!");
+            showToast("✓ Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư!", 5000);
             refreshData();
         } else {
-            msgDiv.text("LỖI: " + (data.error || "Không xác định") + "\n\nChi tiết: " + JSON.stringify(data));
+            msgDiv.text("LỖI: " + (data.error || "Không xác định"));
             console.error('[FRONTEND] Error response:', data);
         }
     })
