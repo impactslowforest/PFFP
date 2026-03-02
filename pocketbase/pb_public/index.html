@@ -257,6 +257,30 @@
                     </div>
 
                     <div class="col-6 col-md-2 col-lg-1">
+                        <div class="filter-label" data-i18n="filterYearEval">Năm đánh giá</div>
+                        <div class="dropdown" id="dropdownYearEval"><button
+                                class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center bg-white"
+                                type="button" data-bs-toggle="dropdown" id="btnFilterYearEval"><span
+                                    class="text-truncate" id="btnFilterYearEvalText" data-i18n="allOption">Tất
+                                    cả</span></button>
+                            <ul class="dropdown-menu dropdown-menu-custom p-2">
+                                <li>
+                                    <div class="form-check"><input class="form-check-input check-all" type="checkbox"
+                                            data-group="yearEval" id="yearEval_all" checked><label
+                                            class="form-check-label fw-bold" for="yearEval_all"
+                                            data-i18n="allOption">Tất cả</label></div>
+                                </li>
+                                <li>
+                                    <hr class="dropdown-divider my-1">
+                                </li>
+                                <li>
+                                    <ul id="yearEvalListContainer" class="list-unstyled p-0 m-0"></ul>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-2 col-lg-1">
                         <div class="filter-label" data-i18n="filterYearSupport">Năm hỗ trợ</div>
                         <div class="dropdown" id="dropdownYearSupport"><button
                                 class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start d-flex justify-content-between align-items-center bg-white"

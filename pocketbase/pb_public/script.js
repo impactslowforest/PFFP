@@ -114,7 +114,7 @@ const translations = {
         searchPlaceholder: "Tìm kiếm nông hộ, lô, mã ID...",
 
         // CẬP NHẬT FILTER VÀ CHART TITLE MỚI
-        filterTitle: "Bộ lọc dữ liệu", filterYear: "Năm", filterYearSupport: "Năm hỗ trợ", filterVillage: "Nhóm hộ", filterStatus: "Trạng thái", filterSupported: "Hỗ trợ bởi", filterSupportedTypes: "Loại hỗ trợ", filterSpecies: "Loài cây", filterManageBy: "Quản lý bởi",
+        filterTitle: "Bộ lọc dữ liệu", filterYear: "Năm", filterYearEval: "Năm đánh giá", filterYearSupport: "Năm hỗ trợ", filterVillage: "Nhóm hộ", filterStatus: "Trạng thái", filterSupported: "Hỗ trợ bởi", filterSupportedTypes: "Loại hỗ trợ", filterSpecies: "Loài cây", filterManageBy: "Quản lý bởi",
         btnReset: "Thiết lập lại", btnRefresh: "Tải lại dữ liệu", btnExport: "Xuất Báo Cáo", btnPrint: "In Trang", btnExit: "Thoát", btnAddFarmer: "Thêm hộ dân", btnAddYearly: "Thêm năm mới", btnAddPlot: "Thêm lô đất",
         homeGroupActivity: "Quản lý dữ liệu", homeGroupLibrary: "Thư viện", homeGroupSystem: "Hệ thống",
         homeCardSurvival: "Tỷ lệ sống",
@@ -213,7 +213,7 @@ const translations = {
         searchPlaceholder: "Search farmers, plots, ID...",
 
         // NEW FILTERS & TITLES
-        filterTitle: "Data Filters", filterYear: "Year", filterYearSupport: "Support Year", filterVillage: "Farmer Group", filterStatus: "Status", filterSupported: "Supported By", filterSupportedTypes: "Support Types", filterSpecies: "Species", filterManageBy: "Managed By",
+        filterTitle: "Data Filters", filterYear: "Year", filterYearEval: "Eval Year", filterYearSupport: "Support Year", filterVillage: "Farmer Group", filterStatus: "Status", filterSupported: "Supported By", filterSupportedTypes: "Support Types", filterSpecies: "Species", filterManageBy: "Managed By",
         btnReset: "Reset", btnRefresh: "Reload Data", btnExport: "Export Excel", btnPrint: "Print", btnExit: "Exit", btnAddFarmer: "Add Farmer", btnAddYearly: "Add New Year", btnAddPlot: "Add Plot",
         homeGroupActivity: "Data Management", homeGroupLibrary: "Library", homeGroupSystem: "System",
         homeCardSurvival: "Survival Rate",
@@ -999,7 +999,7 @@ function toggleLanguage() {
     }
 
     // Cập nhật label cho cả các filter mới
-    ['year', 'yearSupport', 'village', 'status', 'ethnicity', 'manageBy', 'supported', 'supportedTypes', 'species'].forEach(g => updateDropdownLabel(g));
+    ['year', 'yearEval', 'yearSupport', 'village', 'status', 'ethnicity', 'manageBy', 'supported', 'supportedTypes', 'species'].forEach(g => updateDropdownLabel(g));
     if (filteredData && filteredData.farmers) {
         drawCharts(filteredData.farmers, filteredData.plots, filteredData.yearly);
         drawAnalyticsCharts(filteredData.farmers, filteredData.plots, filteredData.yearly);
@@ -1029,6 +1029,11 @@ function initFilters() {
     let uYS = [...new Set((rawData.supported || []).map(d => d['Supported year'] || d.Supported_year))].filter(Boolean).sort();
     let ysO = uYS.map(y => { let lK = String(y).trim(); let m = dropMap[lK]; if (m && m.condition === 'Participation Year') return { value: y, label_vi: m.vi, label_en: m.en }; return { value: y, label_vi: y, label_en: y }; });
     populateMultiSelect('yearSupport', ysO, true);
+
+    // 2b. Year Eval - from Yearly_Data table (Year field, e.g. 24Y, 25Y)
+    let uYE = [...new Set((rawData.yearly || []).map(d => d['Year']))].filter(Boolean).sort();
+    let yeO = uYE.map(y => { let lK = String(y).trim(); let m = dropMap[lK]; if (m && m.condition === 'Participation Year') return { value: y, label_vi: m.vi, label_en: m.en }; return { value: y, label_vi: y, label_en: y }; });
+    populateMultiSelect('yearEval', yeO, true);
 
     // 3. Village (Now Farmer Group) - only 3a/4a restricted by Role. 11/1a/2a see all groups.
     let vS = new Set(rawData.farmers.map(f => String(f['Farmer_Group_Name']).trim()).filter(Boolean));
@@ -1085,7 +1090,7 @@ function toggleMobileFilters() {
 function resetFilters() {
     // Reset Checkboxes
     $('.check-all, .check-item').prop('checked', true);
-    ['year', 'yearSupport', 'village', 'status', 'ethnicity', 'manageBy', 'supported', 'supportedTypes', 'species'].forEach(g => updateDropdownLabel(g));
+    ['year', 'yearEval', 'yearSupport', 'village', 'status', 'ethnicity', 'manageBy', 'supported', 'supportedTypes', 'species'].forEach(g => updateDropdownLabel(g));
 
     // Reset Top X Dropdowns
     $('.chart-select').val('All');
@@ -1112,6 +1117,7 @@ function setFilterFromChart(group, value) {
 function applyFilter() {
     requestAnimationFrame(() => {
         let fY = getSelectedValues('year');
+        let fYE = getSelectedValues('yearEval');
         let fYSup = getSelectedValues('yearSupport'); // NEW
         let fV = getSelectedValues('village');
         let fS = getSelectedValues('status');
@@ -1169,7 +1175,7 @@ function applyFilter() {
         });
 
         let fIDs = new Set(filtF.map(f => f['Farmer_ID']));
-        let filtY = (rawData.yearly || []).filter(y => { if (fSpec !== 'All') { let s = y._speciesArr; if (fSpec.length === 0 || !s.some(z => fSpec.includes(z))) return false; } return fIDs.has(y['Farmer_ID']); });
+        let filtY = (rawData.yearly || []).filter(y => { if (fYE !== 'All' && !fYE.includes(y['Year'])) return false; if (fSpec !== 'All') { let s = y._speciesArr; if (fSpec.length === 0 || !s.some(z => fSpec.includes(z))) return false; } return fIDs.has(y['Farmer_ID']); });
 
         if (fSpec !== 'All') { let fIDSpec = new Set(filtY.map(y => y['Farmer_ID'])); filtF = filtF.filter(f => fIDSpec.has(f['Farmer_ID'])); fIDs = fIDSpec; }
         let filtP = (rawData.plots || []).filter(p => fIDs.has(p['Farmer_ID']));
