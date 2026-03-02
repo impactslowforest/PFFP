@@ -606,10 +606,22 @@ function onDataLoaded(data, fromCache = false) {
     }
     try {
         if (!fromCache) {
-            localStorage.setItem(CACHE_KEY, JSON.stringify({
-                timestamp: Date.now(),
-                data: data
-            }));
+            // Clear old cache keys before saving new one
+            try {
+                for (var i = localStorage.length - 1; i >= 0; i--) {
+                    var k = localStorage.key(i);
+                    if (k && k.startsWith('PFFP_DATA_CACHE') && k !== CACHE_KEY) localStorage.removeItem(k);
+                }
+            } catch (e2) { /* ignore */ }
+            try {
+                localStorage.setItem(CACHE_KEY, JSON.stringify({
+                    timestamp: Date.now(),
+                    data: data
+                }));
+            } catch (storageErr) {
+                console.warn('Cache save failed (quota), clearing all caches');
+                try { localStorage.removeItem(CACHE_KEY); } catch (e3) { /* ignore */ }
+            }
         }
         rawData = data;
         // Strip sensitive fields from user data (defense-in-depth)
