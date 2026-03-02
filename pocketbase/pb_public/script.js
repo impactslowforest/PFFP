@@ -1217,8 +1217,12 @@ function updateUI(f, p, y, s) {
     $('#kpi6').text(suppSpecies.size);
     // KPI7: Farmer groups
     let vS = new Set(); f.forEach(i => { if (i['Farmer_Group_Name']) vS.add(i['Farmer_Group_Name']); }); $('#kpi7').text(vS.size);
-    // KPI8: Completion rate
-    let dC = f.filter(i => (i['Activity'] || '').trim() === 'Done').length; $('#kpi8').text(f.length > 0 ? (dC / f.length * 100).toFixed(2) + '%' : '0.00%');
+    // KPI8: Completion rate (exclude InA farmers)
+    let activeFarmers = f.filter(i => (i['Status'] || '').trim() !== 'InA');
+    let dC = activeFarmers.filter(i => (i['Activity'] || '').trim() === 'Done').length;
+    let kpi8Pct = activeFarmers.length > 0 ? (dC / activeFarmers.length * 100).toFixed(2) + '%' : '0.00%';
+    $('#kpi8').text(kpi8Pct);
+    $('#kpi8').attr('title', dC + '/' + activeFarmers.length + ' (excl. InA)');
     // KPI9: Survival rate from Supported (ONLY evaluated records - A_live has value, including 0)
     var evaluatedRecs = treeRecs.filter(x => { var a = (x['A live'] !== undefined ? x['A live'] : x.A_live); return a !== null && a !== '' && a !== undefined && String(a).trim() !== ''; });
     var evalQty = evaluatedRecs.reduce((ss, x) => ss + (parseFloat(x.Quantity) || 0), 0);
@@ -5251,6 +5255,8 @@ function dtRenderAllTables() {
 function dtRefreshIfActive() {
     var pane = document.getElementById('datatable-main-pane');
     if (pane && pane.classList.contains('active')) {
+        // Clear column filters when global filters change
+        dtColumnFilters = { Farmers: {}, Plots: {}, Yearly_Data: {} };
         dtRenderAllTables();
     }
 }
@@ -5272,6 +5278,9 @@ function dtRenderFarmersTable() {
             return Object.values(f).some(function(v) { return String(v || '').toLowerCase().indexOf(searchVal) >= 0; });
         });
     }
+
+    // Apply column filters
+    farmers = dtApplyColumnFilters(farmers, 'Farmers', null);
 
     var countEl = document.getElementById('dtFarmersCount');
     if (countEl) countEl.textContent = farmers.length;
@@ -5298,7 +5307,7 @@ function dtRenderFarmersTable() {
     html += '<thead><tr><th data-col="_idx">#<span class="sort-icon"></span></th>';
     cols.forEach(function(k) {
         var lk = labels[k] || k;
-        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][lk] || k) + '<span class="sort-icon"></span></th>';
+        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][lk] || k) + '<span class="sort-icon"></span>' + dtBuildFilterIcon(k, 'Farmers') + '</th>';
     });
     html += '<th>' + (isVi ? 'Thao tác' : 'Actions') + '</th>';
     html += '</tr></thead><tbody>';
@@ -5349,6 +5358,9 @@ function dtRenderPlotsTable() {
         });
     }
 
+    // Apply column filters
+    allPlots = dtApplyColumnFilters(allPlots, 'Plots', farmerMap);
+
     var countEl = document.getElementById('dtPlotsCount');
     if (countEl) countEl.textContent = allPlots.length;
 
@@ -5368,9 +5380,9 @@ function dtRenderPlotsTable() {
     html += '<div class="table-responsive"><table class="db-record-table" id="dtPlotsTable">';
     html += '<thead><tr>';
     html += '<th data-col="_idx">#<span class="sort-icon"></span></th>';
-    html += '<th data-col="_farmerName">' + (translations[currentLang].dtFarmerName || 'Farmer Name') + '<span class="sort-icon"></span></th>';
+    html += '<th data-col="_farmerName">' + (translations[currentLang].dtFarmerName || 'Farmer Name') + '<span class="sort-icon"></span>' + dtBuildFilterIcon('_farmerName', 'Plots') + '</th>';
     visibleKeys.forEach(function(k) {
-        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][labels[k]] || k) + '<span class="sort-icon"></span></th>';
+        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][labels[k]] || k) + '<span class="sort-icon"></span>' + dtBuildFilterIcon(k, 'Plots') + '</th>';
     });
     html += '<th>' + (isVi ? 'Thao tác' : 'Actions') + '</th>';
     html += '</tr></thead><tbody>';
@@ -5427,6 +5439,9 @@ function dtRenderYearlyTable() {
         });
     }
 
+    // Apply column filters
+    allYearly = dtApplyColumnFilters(allYearly, 'Yearly_Data', farmerMap);
+
     var countEl = document.getElementById('dtYearlyCount');
     if (countEl) countEl.textContent = allYearly.length;
 
@@ -5446,9 +5461,9 @@ function dtRenderYearlyTable() {
     html += '<div class="table-responsive"><table class="db-record-table" id="dtYearlyTable">';
     html += '<thead><tr>';
     html += '<th data-col="_idx">#<span class="sort-icon"></span></th>';
-    html += '<th data-col="_farmerName">' + (translations[currentLang].dtFarmerName || 'Farmer Name') + '<span class="sort-icon"></span></th>';
+    html += '<th data-col="_farmerName">' + (translations[currentLang].dtFarmerName || 'Farmer Name') + '<span class="sort-icon"></span>' + dtBuildFilterIcon('_farmerName', 'Yearly_Data') + '</th>';
     visibleKeys.forEach(function(k) {
-        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][labels[k]] || k) + '<span class="sort-icon"></span></th>';
+        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][labels[k]] || k) + '<span class="sort-icon"></span>' + dtBuildFilterIcon(k, 'Yearly_Data') + '</th>';
     });
     html += '<th>' + (isVi ? 'Thao tác' : 'Actions') + '</th>';
     html += '</tr></thead><tbody>';
@@ -5527,6 +5542,140 @@ function dtAttachSort(tableId, dataSource, visibleKeys, type, idCol) {
             else if (type === 'Yearly_Data') dtRenderYearlyTable();
         });
     });
+}
+// --- Column Filters for Data Tables ---
+var dtColumnFilters = { Farmers: {}, Plots: {}, Yearly_Data: {} };
+
+function dtApplyColumnFilters(data, type, farmerMap) {
+    var filters = dtColumnFilters[type] || {};
+    var keys = Object.keys(filters);
+    if (keys.length === 0) return data;
+    return data.filter(function(row) {
+        for (var i = 0; i < keys.length; i++) {
+            var col = keys[i];
+            var allowed = filters[col];
+            if (!allowed || allowed.length === 0) continue;
+            var val;
+            if (col === '_farmerName') {
+                var fm = farmerMap ? farmerMap[row.Farmer_ID] : null;
+                val = fm ? (fm.Full_Name || '') : '';
+            } else {
+                val = row[col];
+                val = (val === undefined || val === null) ? '' : String(val);
+            }
+            val = String(val);
+            if (allowed.indexOf(val) < 0) return false;
+        }
+        return true;
+    });
+}
+
+function dtGetColumnValues(data, col, type, farmerMap) {
+    var vals = {};
+    data.forEach(function(row) {
+        var v;
+        if (col === '_farmerName') {
+            var fm = farmerMap ? farmerMap[row.Farmer_ID] : null;
+            v = fm ? (fm.Full_Name || '') : '';
+        } else {
+            v = row[col];
+            v = (v === undefined || v === null) ? '' : String(v);
+        }
+        v = String(v);
+        var display = v;
+        if (type && col !== '_farmerName') display = String(resolveValue(col, v, type));
+        vals[v] = display;
+    });
+    return vals;
+}
+
+function dtBuildFilterIcon(col, type) {
+    var isActive = dtColumnFilters[type] && dtColumnFilters[type][col] && dtColumnFilters[type][col].length > 0;
+    return '<button class="col-filter-btn' + (isActive ? ' active' : '') + '" data-filter-col="' + escapeHtml(col) + '" data-filter-type="' + escapeHtml(type) + '" onclick="event.stopPropagation(); dtShowColumnFilter(this, \'' + escapeHtml(col) + '\', \'' + escapeHtml(type) + '\')" title="Filter"><i class="fas fa-filter"></i></button>';
+}
+
+function dtShowColumnFilter(btn, col, type) {
+    // Close any open popup
+    document.querySelectorAll('.col-filter-popup.show').forEach(function(p) { p.classList.remove('show'); });
+    var th = btn.closest('th');
+    var existing = th.querySelector('.col-filter-popup');
+    if (existing) { existing.classList.toggle('show'); return; }
+
+    // Get data source
+    var data, farmerMap = {};
+    if (type === 'Farmers') data = (filteredData.farmers || []);
+    else if (type === 'Plots') data = (filteredData.plots || []);
+    else data = (filteredData.yearly || []);
+    (rawData.farmers || []).forEach(function(f) { farmerMap[f.Farmer_ID] = f; });
+
+    var valMap = dtGetColumnValues(data, col, type, farmerMap);
+    var entries = Object.keys(valMap).sort(function(a, b) { return valMap[a].localeCompare(valMap[b], 'vi'); });
+    var current = (dtColumnFilters[type] && dtColumnFilters[type][col]) || [];
+
+    var popup = document.createElement('div');
+    popup.className = 'col-filter-popup show';
+    var html = '<input class="cf-search" type="text" placeholder="' + (currentLang === 'vi' ? 'Tìm...' : 'Search...') + '" oninput="dtFilterPopupSearch(this)">';
+    html += '<div class="cf-list">';
+    entries.forEach(function(rawVal) {
+        var display = valMap[rawVal] || rawVal || '(empty)';
+        var checked = current.length === 0 || current.indexOf(rawVal) >= 0;
+        html += '<label class="cf-item"><input type="checkbox" value="' + escapeHtml(rawVal) + '"' + (checked ? ' checked' : '') + '> <span>' + escapeHtml(display) + '</span></label>';
+    });
+    html += '</div>';
+    html += '<div class="cf-actions">';
+    html += '<button class="cf-clear" onclick="dtClearColumnFilter(\'' + escapeHtml(col) + '\', \'' + escapeHtml(type) + '\', this)">' + (currentLang === 'vi' ? 'Bỏ lọc' : 'Clear') + '</button>';
+    html += '<button class="cf-apply" onclick="dtApplyColumnFilterPopup(\'' + escapeHtml(col) + '\', \'' + escapeHtml(type) + '\', this)">' + (currentLang === 'vi' ? 'Áp dụng' : 'Apply') + '</button>';
+    html += '</div>';
+    popup.innerHTML = html;
+    th.appendChild(popup);
+
+    // Close on outside click
+    setTimeout(function() {
+        document.addEventListener('click', function closePopup(e) {
+            if (!popup.contains(e.target) && e.target !== btn) {
+                popup.classList.remove('show');
+                document.removeEventListener('click', closePopup);
+            }
+        });
+    }, 50);
+}
+
+function dtFilterPopupSearch(input) {
+    var q = (input.value || '').toLowerCase();
+    var items = input.parentNode.querySelectorAll('.cf-item');
+    items.forEach(function(item) {
+        var text = item.textContent.toLowerCase();
+        item.style.display = text.indexOf(q) >= 0 ? '' : 'none';
+    });
+}
+
+function dtApplyColumnFilterPopup(col, type, btn) {
+    var popup = btn.closest('.col-filter-popup');
+    var checks = popup.querySelectorAll('.cf-list input[type=checkbox]');
+    var allChecked = true, noneChecked = true;
+    var selected = [];
+    checks.forEach(function(cb) {
+        if (cb.checked) { selected.push(cb.value); noneChecked = false; }
+        else allChecked = false;
+    });
+    if (!dtColumnFilters[type]) dtColumnFilters[type] = {};
+    if (allChecked || noneChecked) { delete dtColumnFilters[type][col]; }
+    else { dtColumnFilters[type][col] = selected; }
+    popup.classList.remove('show');
+    // Re-render table
+    if (type === 'Farmers') dtRenderFarmersTable();
+    else if (type === 'Plots') dtRenderPlotsTable();
+    else if (type === 'Yearly_Data') dtRenderYearlyTable();
+}
+
+function dtClearColumnFilter(col, type, btn) {
+    if (!dtColumnFilters[type]) dtColumnFilters[type] = {};
+    delete dtColumnFilters[type][col];
+    var popup = btn.closest('.col-filter-popup');
+    popup.classList.remove('show');
+    if (type === 'Farmers') dtRenderFarmersTable();
+    else if (type === 'Plots') dtRenderPlotsTable();
+    else if (type === 'Yearly_Data') dtRenderYearlyTable();
 }
 // === END DATA TABLES TAB ===
 
