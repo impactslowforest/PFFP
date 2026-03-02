@@ -149,6 +149,7 @@ const translations = {
 
         // Tab Names
         tabAnalytics: "Phân tích dữ liệu",
+        tabDataTables: "Biểu dữ liệu", dtFarmersTab: "Hộ dân", dtPlotsTab: "Lô đất", dtYearlyTab: "Đánh giá hàng năm", dtNoData: "Chưa có dữ liệu phù hợp với bộ lọc", dtFarmerName: "Tên hộ dân",
         tabConfig: "Cấu hình", tabUserMng: "Quản lý Nhân sự", headerUserList: "Danh sách nhân viên", btnAddUser: "Thêm nhân viên",
 
         // User Table Columns
@@ -243,6 +244,7 @@ const translations = {
         thTrainId: "Train ID", btnAddLibrary: "Add New",
 
         tabAnalytics: "Data Analytics",
+        tabDataTables: "Data Tables", dtFarmersTab: "Farmers", dtPlotsTab: "Plots", dtYearlyTab: "Yearly Data", dtNoData: "No data matching current filters", dtFarmerName: "Farmer Name",
 
         tabConfig: "Configuration", tabUserMng: "HR Management", headerUserList: "Staff List", btnAddUser: "Add Staff",
 
@@ -454,6 +456,9 @@ function startApp() {
                 document.body.classList.add('show-filters', 'tab-charts');
             } else if (e.target.id === 'home-main-tab') {
                 document.body.classList.add('tab-home');
+            } else if (e.target.id === 'datatable-main-tab') {
+                document.body.classList.add('show-filters');
+                dtRenderAllTables();
             } else {
                 document.body.classList.add('show-filters');
             }
@@ -1217,6 +1222,7 @@ function updateUI(f, p, y, s) {
     drawAnalyticsCharts(f, p, y);
     drawSurvivalRateChart(f, y);
     drawTables(f, p, y);
+    dtRefreshIfActive();
 }
 
 function processBarChartData(dataArray, filterId) {
@@ -5215,6 +5221,297 @@ function dbFilterContent() {
         row.style.display = text.indexOf(q) >= 0 ? '' : 'none';
     });
 }
+
+// =====================================================
+// DATA TABLES TAB (Biểu dữ liệu) - Flat table views
+// =====================================================
+function dtRenderAllTables() {
+    dtRenderFarmersTable();
+    dtRenderPlotsTable();
+    dtRenderYearlyTable();
+}
+
+function dtRefreshIfActive() {
+    var pane = document.getElementById('datatable-main-pane');
+    if (pane && pane.classList.contains('active')) {
+        dtRenderAllTables();
+    }
+}
+
+function dtFilterTable(subTab) {
+    if (subTab === 'farmers') dtRenderFarmersTable();
+    else if (subTab === 'plots') dtRenderPlotsTable();
+    else if (subTab === 'yearly') dtRenderYearlyTable();
+}
+
+function dtRenderFarmersTable() {
+    var isVi = currentLang === 'vi';
+    var farmers = (filteredData.farmers || []).slice();
+    var searchEl = document.getElementById('dtFarmersSearch');
+    var searchVal = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
+
+    if (searchVal) {
+        farmers = farmers.filter(function(f) {
+            return Object.values(f).some(function(v) { return String(v || '').toLowerCase().indexOf(searchVal) >= 0; });
+        });
+    }
+
+    var countEl = document.getElementById('dtFarmersCount');
+    if (countEl) countEl.textContent = farmers.length;
+
+    var cols = ['Farmer_ID', 'Full_Name', 'Farmer_Group_Name', 'Participation Year',
+                'Year_Of_Birth', 'Gender', 'Phone_Number', 'Total_Coffee_Area',
+                'Number of coffee farm plots', 'Status', 'Activity'];
+    var labels = FIELD_LABELS.Farmers;
+
+    var html = '<div class="db-toolbar">';
+    html += '<div class="db-level-title">' + (isVi ? 'Danh sách hộ dân' : 'Farmer List') + ' (' + farmers.length + ')</div>';
+    if (userPermissions.canAdd) {
+        html += '<button class="btn-add" onclick="showAddFarmerModal()"><i class="fas fa-plus me-1"></i>' + (isVi ? 'Thêm hộ dân' : 'Add Farmer') + '</button>';
+    }
+    html += '</div>';
+
+    if (farmers.length === 0) {
+        html += '<p class="text-muted mt-3 px-3">' + translations[currentLang].dtNoData + '</p>';
+        document.getElementById('dtFarmersContent').innerHTML = html;
+        return;
+    }
+
+    html += '<div class="table-responsive"><table class="db-record-table" id="dtFarmersTable">';
+    html += '<thead><tr><th data-col="_idx">#<span class="sort-icon"></span></th>';
+    cols.forEach(function(k) {
+        var lk = labels[k] || k;
+        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][lk] || k) + '<span class="sort-icon"></span></th>';
+    });
+    html += '<th>' + (isVi ? 'Thao tác' : 'Actions') + '</th>';
+    html += '</tr></thead><tbody>';
+
+    farmers.forEach(function(f, idx) {
+        html += '<tr style="cursor:pointer" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')">';
+        html += '<td>' + (idx + 1) + '</td>';
+        cols.forEach(function(k) {
+            var val = f[k];
+            if (val === undefined || val === null) val = '';
+            if (k === 'Activity') {
+                html += '<td>' + formatActivity(val) + '</td>';
+            } else if (k === 'Full_Name') {
+                val = resolveValue(k, val, 'Farmers');
+                html += '<td>' + getActivityIcon('Farmers', f.Farmer_ID, f.Activity) + escapeHtml(String(val)) + '</td>';
+            } else {
+                val = resolveValue(k, val, 'Farmers');
+                var emptyClass = (String(val).trim() === '' || val === 0) ? ' class="db-empty-cell"' : '';
+                html += '<td' + emptyClass + '>' + escapeHtml(String(val)) + '</td>';
+            }
+        });
+        html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
+        html += '<button class="db-action-btn btn-view" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-eye"></i></button>';
+        if (canEditRecord(f)) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-edit"></i></button>';
+        if (canEditRecord(f) && userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-trash"></i></button>';
+        html += '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+
+    document.getElementById('dtFarmersContent').innerHTML = html;
+    dtAttachSort('dtFarmersTable', farmers, cols, 'Farmers', 'Farmer_ID');
+}
+
+function dtRenderPlotsTable() {
+    var isVi = currentLang === 'vi';
+    var allPlots = (filteredData.plots || []).slice();
+    var searchEl = document.getElementById('dtPlotsSearch');
+    var searchVal = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
+
+    var farmerMap = {};
+    (rawData.farmers || []).forEach(function(f) { farmerMap[f.Farmer_ID] = f; });
+
+    if (searchVal) {
+        allPlots = allPlots.filter(function(p) {
+            var farmer = farmerMap[p.Farmer_ID] || {};
+            var searchable = Object.values(p).concat([farmer.Full_Name || '']).join(' ').toLowerCase();
+            return searchable.indexOf(searchVal) >= 0;
+        });
+    }
+
+    var countEl = document.getElementById('dtPlotsCount');
+    if (countEl) countEl.textContent = allPlots.length;
+
+    var labels = FIELD_LABELS.Plots;
+    var visibleKeys = Object.keys(labels).filter(function(k) { return k !== 'Farmer_ID'; });
+
+    var html = '<div class="db-toolbar">';
+    html += '<div class="db-level-title">' + (isVi ? 'Danh sách lô đất' : 'Plot List') + ' (' + allPlots.length + ')</div>';
+    html += '</div>';
+
+    if (allPlots.length === 0) {
+        html += '<p class="text-muted mt-3 px-3">' + translations[currentLang].dtNoData + '</p>';
+        document.getElementById('dtPlotsContent').innerHTML = html;
+        return;
+    }
+
+    html += '<div class="table-responsive"><table class="db-record-table" id="dtPlotsTable">';
+    html += '<thead><tr>';
+    html += '<th data-col="_idx">#<span class="sort-icon"></span></th>';
+    html += '<th data-col="_farmerName">' + (translations[currentLang].dtFarmerName || 'Farmer Name') + '<span class="sort-icon"></span></th>';
+    visibleKeys.forEach(function(k) {
+        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][labels[k]] || k) + '<span class="sort-icon"></span></th>';
+    });
+    html += '<th>' + (isVi ? 'Thao tác' : 'Actions') + '</th>';
+    html += '</tr></thead><tbody>';
+
+    allPlots.forEach(function(row, idx) {
+        var itemId = row.Plot_Id || '';
+        var farmer = farmerMap[row.Farmer_ID] || {};
+        html += '<tr style="cursor:pointer" data-id="' + escapeHtml(itemId) + '" onclick="dbRowClick(event, \'Plots\', \'' + escapeHtml(itemId) + '\')">';
+        html += '<td>' + (idx + 1) + '</td>';
+        html += '<td>' + escapeHtml(farmer.Full_Name || row.Farmer_ID || '') + '</td>';
+        var firstCol = true;
+        visibleKeys.forEach(function(k) {
+            var val = row[k];
+            if (val === undefined || val === null) val = '';
+            if (k === 'Activity') {
+                html += '<td>' + formatActivity(val) + '</td>';
+            } else {
+                val = resolveValue(k, val, 'Plots');
+                var isNum = typeof val === 'number' || (!isNaN(parseFloat(val)) && isFinite(val) && String(val).trim() !== '');
+                var emptyClass = (String(val).trim() === '' || val === 0) ? ' db-empty-cell' : '';
+                var numClass = (isNum && !emptyClass) ? ' num-col' : '';
+                var iconPrefix = '';
+                if (firstCol) { iconPrefix = getActivityIcon('Plots', itemId, row.Activity); }
+                html += '<td class="' + emptyClass + numClass + '">' + iconPrefix + escapeHtml(String(val)) + '</td>';
+            }
+            firstCol = false;
+        });
+        html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
+        html += getActivityBtn('Plots', itemId, row.Activity);
+        if (canEditRecord(row)) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'Plots\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-edit"></i></button>';
+        if (canEditRecord(row) && userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'Plots\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-trash"></i></button>';
+        html += '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+
+    document.getElementById('dtPlotsContent').innerHTML = html;
+    dtAttachSort('dtPlotsTable', allPlots, ['_farmerName'].concat(visibleKeys), 'Plots', 'Plot_Id');
+}
+
+function dtRenderYearlyTable() {
+    var isVi = currentLang === 'vi';
+    var allYearly = (filteredData.yearly || []).slice();
+    var searchEl = document.getElementById('dtYearlySearch');
+    var searchVal = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
+
+    var farmerMap = {};
+    (rawData.farmers || []).forEach(function(f) { farmerMap[f.Farmer_ID] = f; });
+
+    if (searchVal) {
+        allYearly = allYearly.filter(function(y) {
+            var farmer = farmerMap[y.Farmer_ID] || {};
+            var searchable = Object.values(y).concat([farmer.Full_Name || '']).join(' ').toLowerCase();
+            return searchable.indexOf(searchVal) >= 0;
+        });
+    }
+
+    var countEl = document.getElementById('dtYearlyCount');
+    if (countEl) countEl.textContent = allYearly.length;
+
+    var labels = FIELD_LABELS.Yearly_Data;
+    var visibleKeys = Object.keys(labels).filter(function(k) { return k !== 'Farmer_ID'; });
+
+    var html = '<div class="db-toolbar">';
+    html += '<div class="db-level-title">' + (isVi ? 'Đánh giá hàng năm' : 'Yearly Data') + ' (' + allYearly.length + ')</div>';
+    html += '</div>';
+
+    if (allYearly.length === 0) {
+        html += '<p class="text-muted mt-3 px-3">' + translations[currentLang].dtNoData + '</p>';
+        document.getElementById('dtYearlyContent').innerHTML = html;
+        return;
+    }
+
+    html += '<div class="table-responsive"><table class="db-record-table" id="dtYearlyTable">';
+    html += '<thead><tr>';
+    html += '<th data-col="_idx">#<span class="sort-icon"></span></th>';
+    html += '<th data-col="_farmerName">' + (translations[currentLang].dtFarmerName || 'Farmer Name') + '<span class="sort-icon"></span></th>';
+    visibleKeys.forEach(function(k) {
+        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][labels[k]] || k) + '<span class="sort-icon"></span></th>';
+    });
+    html += '<th>' + (isVi ? 'Thao tác' : 'Actions') + '</th>';
+    html += '</tr></thead><tbody>';
+
+    allYearly.forEach(function(row, idx) {
+        var itemId = row.Record_Id || '';
+        var farmer = farmerMap[row.Farmer_ID] || {};
+        html += '<tr style="cursor:pointer" data-id="' + escapeHtml(itemId) + '" onclick="dbRowClick(event, \'Yearly_Data\', \'' + escapeHtml(itemId) + '\')">';
+        html += '<td>' + (idx + 1) + '</td>';
+        html += '<td>' + escapeHtml(farmer.Full_Name || row.Farmer_ID || '') + '</td>';
+        var firstCol = true;
+        visibleKeys.forEach(function(k) {
+            var val = row[k];
+            if (val === undefined || val === null) val = '';
+            if (k === 'Activity') {
+                html += '<td>' + formatActivity(val) + '</td>';
+            } else {
+                val = resolveValue(k, val, 'Yearly_Data');
+                var isNum = typeof val === 'number' || (!isNaN(parseFloat(val)) && isFinite(val) && String(val).trim() !== '');
+                var emptyClass = (String(val).trim() === '' || val === 0) ? ' db-empty-cell' : '';
+                var numClass = (isNum && !emptyClass) ? ' num-col' : '';
+                var iconPrefix = '';
+                if (firstCol) { iconPrefix = getActivityIcon('Yearly_Data', itemId, row.Activity); }
+                html += '<td class="' + emptyClass + numClass + '">' + iconPrefix + escapeHtml(String(val)) + '</td>';
+            }
+            firstCol = false;
+        });
+        html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
+        html += getActivityBtn('Yearly_Data', itemId, row.Activity);
+        if (canEditRecord(row)) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'Yearly_Data\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-edit"></i></button>';
+        if (canEditRecord(row) && userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'Yearly_Data\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-trash"></i></button>';
+        html += '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+
+    document.getElementById('dtYearlyContent').innerHTML = html;
+    dtAttachSort('dtYearlyTable', allYearly, ['_farmerName'].concat(visibleKeys), 'Yearly_Data', 'Record_Id');
+}
+
+// Sort for Data Tables tab (reuses same logic as dbAttachSort)
+function dtAttachSort(tableId, dataSource, visibleKeys, type, idCol) {
+    var table = document.getElementById(tableId);
+    if (!table) return;
+    var headers = table.querySelectorAll('thead th[data-col]');
+    headers.forEach(function(th) {
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', function() {
+            var col = th.getAttribute('data-col');
+            if (col === '_idx') return;
+            var asc = th.getAttribute('data-sort') !== 'asc';
+            headers.forEach(function(h) { h.removeAttribute('data-sort'); h.querySelector('.sort-icon').textContent = ''; });
+            th.setAttribute('data-sort', asc ? 'asc' : 'desc');
+            th.querySelector('.sort-icon').textContent = asc ? ' ▲' : ' ▼';
+
+            var farmerMap = {};
+            (rawData.farmers || []).forEach(function(f) { farmerMap[f.Farmer_ID] = f; });
+
+            dataSource.sort(function(a, b) {
+                var va, vb;
+                if (col === '_farmerName') {
+                    va = (farmerMap[a.Farmer_ID] || {}).Full_Name || '';
+                    vb = (farmerMap[b.Farmer_ID] || {}).Full_Name || '';
+                } else {
+                    va = a[col]; vb = b[col];
+                }
+                if (va === undefined || va === null) va = '';
+                if (vb === undefined || vb === null) vb = '';
+                var na = parseFloat(va), nb = parseFloat(vb);
+                if (!isNaN(na) && !isNaN(nb)) return asc ? na - nb : nb - na;
+                return asc ? String(va).localeCompare(String(vb), 'vi') : String(vb).localeCompare(String(va), 'vi');
+            });
+
+            // Re-render the specific table
+            if (type === 'Farmers') dtRenderFarmersTable();
+            else if (type === 'Plots') dtRenderPlotsTable();
+            else if (type === 'Yearly_Data') dtRenderYearlyTable();
+        });
+    });
+}
+// === END DATA TABLES TAB ===
 
 function dbPrintFarmerReport(farmerId) {
     var isVi = currentLang === 'vi';

@@ -1091,6 +1091,21 @@ body.tab-charts .search-bar-wrapper {
     font-size: 1.1rem;
 }
 
+/* Data Tables tab (Biểu dữ liệu) */
+#datatable-main-pane .table-responsive {
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+}
+#datatable-main-pane .db-record-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+#datatableTabs .badge {
+    font-size: 0.7rem;
+    font-weight: 500;
+}
+
 /* Search row highlight */
 .search-highlight-row {
     background-color: #fff9c4 !important;

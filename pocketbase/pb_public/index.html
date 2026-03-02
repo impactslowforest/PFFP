@@ -456,6 +456,9 @@
                         data-bs-toggle="tab" data-bs-target="#analytics-main-pane" type="button" role="tab"><i
                             class="fas fa-chart-pie"></i> <span data-i18n="tabAnalytics">Phân tích dữ
                             liệu</span></button></li>
+                <li class="nav-item" role="presentation"><button class="nav-link" id="datatable-main-tab"
+                        data-bs-toggle="tab" data-bs-target="#datatable-main-pane" type="button" role="tab"><i
+                            class="fas fa-table"></i> <span data-i18n="tabDataTables">Biểu dữ liệu</span></button></li>
                 <li class="nav-item d-flex align-items-center gap-2 ms-auto py-1">
                     <div class="filter-actions d-flex gap-1 me-3">
                         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetFilters()"><i
@@ -835,6 +838,68 @@
                                 </div>
                                 <div class="chart-body"><canvas id="chartSurvivalRate"></canvas></div>
                                 <div id="chartSurvivalNote" class="chart-note text-muted small px-3 py-2" style="background:#f8f9fa; border-top:1px solid #dee2e6;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DATA TABLES TAB (Biểu dữ liệu) -->
+                <div class="tab-pane fade" id="datatable-main-pane" role="tabpanel" tabindex="0">
+                    <div class="card shadow-sm rounded-0">
+                        <div class="card-header bg-white py-2">
+                            <ul class="nav nav-tabs card-header-tabs" id="datatableTabs" role="tablist">
+                                <li class="nav-item"><button class="nav-link active" id="dt-farmers-tab" data-bs-toggle="tab"
+                                        data-bs-target="#dt-farmers-pane" type="button" role="tab">
+                                        <i class="fas fa-users"></i>
+                                        <span data-i18n="dtFarmersTab">Hộ dân</span>
+                                        <span class="badge bg-secondary ms-1" id="dtFarmersCount">0</span>
+                                    </button></li>
+                                <li class="nav-item"><button class="nav-link" id="dt-plots-tab" data-bs-toggle="tab"
+                                        data-bs-target="#dt-plots-pane" type="button" role="tab">
+                                        <i class="fas fa-map-marked-alt"></i>
+                                        <span data-i18n="dtPlotsTab">Lô đất</span>
+                                        <span class="badge bg-secondary ms-1" id="dtPlotsCount">0</span>
+                                    </button></li>
+                                <li class="nav-item"><button class="nav-link" id="dt-yearly-tab" data-bs-toggle="tab"
+                                        data-bs-target="#dt-yearly-pane" type="button" role="tab">
+                                        <i class="fas fa-calendar-check"></i>
+                                        <span data-i18n="dtYearlyTab">Đánh giá hàng năm</span>
+                                        <span class="badge bg-secondary ms-1" id="dtYearlyCount">0</span>
+                                    </button></li>
+                            </ul>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="tab-content">
+                                <div class="tab-pane fade show active" id="dt-farmers-pane">
+                                    <div class="px-3 py-2">
+                                        <div class="input-group input-group-sm" style="max-width:400px;">
+                                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                            <input type="text" class="form-control" id="dtFarmersSearch"
+                                                placeholder="Tìm kiếm..." oninput="dtFilterTable('farmers')">
+                                        </div>
+                                    </div>
+                                    <div class="px-3 py-2" id="dtFarmersContent"></div>
+                                </div>
+                                <div class="tab-pane fade" id="dt-plots-pane">
+                                    <div class="px-3 py-2">
+                                        <div class="input-group input-group-sm" style="max-width:400px;">
+                                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                            <input type="text" class="form-control" id="dtPlotsSearch"
+                                                placeholder="Tìm kiếm..." oninput="dtFilterTable('plots')">
+                                        </div>
+                                    </div>
+                                    <div class="px-3 py-2" id="dtPlotsContent"></div>
+                                </div>
+                                <div class="tab-pane fade" id="dt-yearly-pane">
+                                    <div class="px-3 py-2">
+                                        <div class="input-group input-group-sm" style="max-width:400px;">
+                                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                            <input type="text" class="form-control" id="dtYearlySearch"
+                                                placeholder="Tìm kiếm..." oninput="dtFilterTable('yearly')">
+                                        </div>
+                                    </div>
+                                    <div class="px-3 py-2" id="dtYearlyContent"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1251,6 +1316,9 @@
         </button>
         <button class="bottom-bar-btn" data-target="analytics-main-tab" onclick="switchMainTab('analytics-main-tab')">
             <i class="fas fa-chart-pie"></i><span data-i18n="tabAnalytics">Phân tích</span>
+        </button>
+        <button class="bottom-bar-btn" data-target="datatable-main-tab" onclick="switchMainTab('datatable-main-tab')">
+            <i class="fas fa-table"></i><span data-i18n="tabDataTables">Biểu DL</span>
         </button>
     </nav>
 
