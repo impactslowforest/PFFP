@@ -11,7 +11,7 @@ const TABLE_MAP = {
     'Admin':                { table: 'admin',                idCol: 'Adm_ID' },
     'Training':             { table: 'training_list',        idCol: 'Train_ID' }
 };
-const CACHE_KEY = "PFFP_DATA_CACHE_v2";
+const CACHE_KEY = "PFFP_DATA_CACHE_v3";
 const CACHE_TTL = 60 * 60 * 1000; // 1 giờ (milliseconds)
 // ==========================================================
 // GLOBAL STATE
