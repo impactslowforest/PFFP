@@ -1023,6 +1023,63 @@ body.tab-charts .search-bar-wrapper {
     font-weight: 600;
 }
 
+/* Activity badges */
+.activity-badge-done {
+    background: #E8F5E9;
+    color: #2E7D32;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.activity-badge-ny {
+    background: #FFEBEE;
+    color: #d32f2f;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Approve for done button (green) */
+.db-action-btn.btn-approve {
+    color: #fff;
+    background: #2E7D32;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.db-action-btn.btn-approve:hover {
+    background: #1B5E20;
+    transform: scale(1.1);
+}
+
+/* Check again button (magenta/pink) */
+.db-action-btn.btn-review {
+    color: #fff;
+    background: #E91E63;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.db-action-btn.btn-review:hover {
+    background: #C2185B;
+    transform: scale(1.1);
+}
+
 /* Search row highlight */
 .search-highlight-row {
     background-color: #fff9c4 !important;

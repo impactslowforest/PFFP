@@ -1603,9 +1603,14 @@ function showFarmerDetails(farmerId) {
     relatedYearly.sort((a, b) => b.Year - a.Year);
 
     // --- XÂY DỰNG HTML CHI TIẾT ---
+    // Activity status for farmer
+    var farmerActivity = (farmer.Activity || '').trim();
+    var farmerIsDone = farmerActivity === 'Done';
+
     let html = `
-            <div class="print-main-title">
-                ${currentLang === 'vi' ? 'HỒ SƠ NÔNG HỘ' : 'FARMER PROFILE'}: ${farmer.Full_Name || ''} (${farmer.Farmer_ID})
+            <div class="print-main-title d-flex align-items-center justify-content-between flex-wrap">
+                <span>${currentLang === 'vi' ? 'HỒ SƠ NÔNG HỘ' : 'FARMER PROFILE'}: ${farmer.Full_Name || ''} (${farmer.Farmer_ID})</span>
+                <span class="no-print">${formatActivity(farmer.Activity)}</span>
             </div>
         `;
 
@@ -1699,6 +1704,12 @@ function showFarmerDetails(farmerId) {
         buttonsHtml += `<button type="button" class="btn btn-success" onclick="exportDetailToExcel('${farmerId}')"><i class="fas fa-file-excel"></i> Excel</button>`;
     }
     if (userPermissions.canEdit) {
+        // Farmer-level approve/review button
+        if (farmerIsDone) {
+            buttonsHtml += `<button type="button" class="btn" style="background:#E91E63;color:#fff;" onclick="reviewActivity('Farmers','${farmerId}')"><i class="fas fa-eye me-1"></i>Check again</button>`;
+        } else {
+            buttonsHtml += `<button type="button" class="btn" style="background:#2E7D32;color:#fff;" onclick="approveActivity('Farmers','${farmerId}')"><i class="fas fa-check me-1"></i>Approve for done</button>`;
+        }
         buttonsHtml += `<button type="button" class="btn btn-warning" onclick="editFarmer('${farmerId}')"><i class="fas fa-edit"></i> ${currentLang === 'vi' ? 'Sửa' : 'Edit'}</button>`;
     }
     if (userPermissions.canDelete) {
@@ -1737,8 +1748,9 @@ function renderPlotGridWithSupport(plots, farmerId) {
 
         html += '<div class="child-card-wrapper mb-4 p-3 border rounded bg-white shadow-sm position-relative">';
         html += '<div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">';
-        html += '<div class="fw-bold text-success"><i class="fas fa-map"></i> ' + (idx + 1) + '. ' + plotId + '</div>';
+        html += '<div class="fw-bold text-success"><i class="fas fa-map"></i> ' + (idx + 1) + '. ' + plotId + ' ' + formatActivity(plot.Activity) + '</div>';
         html += '<div class="no-print d-flex gap-2">';
+        html += getActivityBtnCard('Plots', plotId, plot.Activity);
         html += '<button class="btn btn-sm btn-warning no-print" onclick="openEditForm(\'Plots\', \'' + plotId + '\')"><i class="fas fa-edit"></i></button>';
         html += '<button class="btn btn-sm btn-danger no-print" onclick="deleteItem(\'Plots\', \'' + plotId + '\')"><i class="fas fa-trash"></i></button>';
         html += '</div></div>';
@@ -2300,11 +2312,13 @@ function renderChildGrid(data, type) {
     const idKey = (type === 'Plots') ? 'Plot_Id' : (type === 'Supported') ? 'Support_ID' : 'Record_Id';
 
     data.forEach((item, idx) => {
+        var actBtnHtml = (type === 'Plots' || type === 'Yearly_Data') ? getActivityBtnCard(type, item[idKey], item.Activity) : '';
         html += `
             <div class="child-card-wrapper mb-4 p-3 border rounded bg-white shadow-sm position-relative">
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                    <div class="fw-bold text-success"><i class="fas fa-tag"></i> ${idx + 1}. ${item[idKey] || ''}</div>
+                    <div class="fw-bold text-success"><i class="fas fa-tag"></i> ${idx + 1}. ${item[idKey] || ''} ${formatActivity(item.Activity)}</div>
                     <div class="no-print d-flex gap-2">
+                        ${actBtnHtml}
                         <button class="btn btn-sm btn-warning no-print" onclick="openEditForm('${type}', '${item[idKey]}')"><i class="fas fa-edit"></i></button>
                         <button class="btn btn-sm btn-danger no-print" onclick="deleteItem('${type}', '${item[idKey]}')"><i class="fas fa-trash"></i></button>
                     </div>
@@ -3653,8 +3667,84 @@ function formatStatus(statusVal) {
     return `<span class="${String(statusVal).trim().toLowerCase() === 'done' ? 'status-active' : 'status-inactive'}">${resolveValue('Status', statusVal, 'Farmers')}</span>`;
 }
 function formatActivity(actVal) {
-    return `<span class="${String(actVal).trim().toLowerCase() === 'done' ? 'activity-done' : 'activity-ny'}">${actVal || 'NY'}</span>`;
+    var isDone = String(actVal || '').trim() === 'Done';
+    return '<span class="' + (isDone ? 'activity-badge-done' : 'activity-badge-ny') + '">' + (isDone ? 'Done' : 'NY') + '</span>';
 }
+
+// === ACTIVITY APPROVAL SYSTEM ===
+async function approveActivity(type, itemId) {
+    var isVi = currentLang === 'vi';
+
+    // For Farmers: check all related Plots + Yearly_Data are Done first
+    if (type === 'Farmers') {
+        var relatedPlots = (rawData.plots || []).filter(function(p) { return String(p.Farmer_ID) === String(itemId); });
+        var relatedYearly = (rawData.yearly || []).filter(function(y) { return String(y.Farmer_ID) === String(itemId); });
+
+        var plotsNotDone = relatedPlots.filter(function(p) { return (p.Activity || '').trim() !== 'Done'; });
+        var yearlyNotDone = relatedYearly.filter(function(y) { return (y.Activity || '').trim() !== 'Done'; });
+
+        if (plotsNotDone.length > 0 || yearlyNotDone.length > 0) {
+            var msg = isVi
+                ? 'Không thể phê duyệt hộ dân này!\n\n'
+                  + (plotsNotDone.length ? '- ' + plotsNotDone.length + ' lô đất chưa phê duyệt\n' : '')
+                  + (yearlyNotDone.length ? '- ' + yearlyNotDone.length + ' dữ liệu hàng năm chưa phê duyệt' : '')
+                : 'Cannot approve this farmer!\n\n'
+                  + (plotsNotDone.length ? '- ' + plotsNotDone.length + ' plots not approved\n' : '')
+                  + (yearlyNotDone.length ? '- ' + yearlyNotDone.length + ' yearly data not approved' : '');
+            alert(msg);
+            return;
+        }
+    }
+
+    var confirmMsg = isVi ? 'Xác nhận phê duyệt bản ghi này?\n(Approve for done)' : 'Confirm approval of this record?\n(Approve for done)';
+    var confirmed = await showCustomConfirm(confirmMsg, 'approve');
+    if (!confirmed) return;
+
+    var TABLE_MAP = { 'Farmers': { table: 'farmers', idCol: 'Farmer_ID' }, 'Plots': { table: 'plots', idCol: 'Plot_Id' }, 'Yearly_Data': { table: 'yearly_data', idCol: 'Record_Id' } };
+    var mapping = TABLE_MAP[type];
+    if (!mapping) return;
+
+    supabaseClient.from(mapping.table).update({ Activity: 'Done' }).eq(mapping.idCol, itemId)
+        .then(function(res) {
+            if (res.error) { showToast('Error: ' + res.error.message); return; }
+            showToast(isVi ? '✓ Đã phê duyệt thành công!' : '✓ Approved successfully!');
+            refreshData();
+        });
+}
+
+function reviewActivity(type, itemId) {
+    if (type === 'Farmers') {
+        showFarmerDetails(itemId);
+    } else {
+        openEditForm(type, itemId);
+    }
+}
+
+// Generate approve/review button for data browser tables
+function getActivityBtn(type, itemId, activityVal) {
+    if (!userPermissions.canEdit) return '';
+    var isDone = (activityVal || '').trim() === 'Done';
+
+    if (isDone) {
+        return '<button class="db-action-btn btn-review" onclick="event.stopPropagation(); reviewActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')" title="Check again"><i class="fas fa-eye"></i></button>';
+    } else {
+        return '<button class="db-action-btn btn-approve" onclick="event.stopPropagation(); approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')" title="Approve for done"><i class="fas fa-check"></i></button>';
+    }
+}
+
+// Generate approve/review button for card view (farmer detail)
+function getActivityBtnCard(type, itemId, activityVal) {
+    if (!userPermissions.canEdit) return '';
+    var isDone = (activityVal || '').trim() === 'Done';
+
+    if (isDone) {
+        return '<button class="btn btn-sm no-print" style="background:#E91E63;color:#fff;border-radius:20px;" onclick="reviewActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-eye me-1"></i>Check again</button>';
+    } else {
+        return '<button class="btn btn-sm no-print" style="background:#2E7D32;color:#fff;border-radius:20px;" onclick="approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-check me-1"></i>Approve for done</button>';
+    }
+}
+// === END ACTIVITY APPROVAL SYSTEM ===
+
 function formatDate(dateVal) {
     if (!dateVal) return ""; let d = new Date(dateVal); if (isNaN(d.getTime())) return dateVal;
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; return `${d.getFullYear()}-${months[d.getMonth()]}-${String(d.getDate()).padStart(2, '0')}`;
@@ -4806,7 +4896,7 @@ function dbRenderFarmers() {
     html += '</div>';
 
     // Excel-like table with key farmer columns
-    var farmerCols = ['Farmer_ID', 'Full_Name', 'Year_Of_Birth', 'Gender', 'Phone_Number', 'Total_Coffee_Area', 'Number of coffee farm plots', 'Status'];
+    var farmerCols = ['Farmer_ID', 'Full_Name', 'Year_Of_Birth', 'Gender', 'Phone_Number', 'Total_Coffee_Area', 'Number of coffee farm plots', 'Status', 'Activity'];
     var farmerLabels = FIELD_LABELS.Farmers;
 
     html += '<div class="table-responsive"><table class="db-record-table">';
@@ -4824,11 +4914,16 @@ function dbRenderFarmers() {
         farmerCols.forEach(function (k) {
             var val = f[k];
             if (val === undefined || val === null) val = '';
-            val = resolveValue(k, val, 'Farmers');
-            var emptyClass = (String(val).trim() === '' || val === 0) ? ' class="db-empty-cell"' : '';
-            html += '<td' + emptyClass + '>' + escapeHtml(String(val)) + '</td>';
+            if (k === 'Activity') {
+                html += '<td>' + formatActivity(val) + '</td>';
+            } else {
+                val = resolveValue(k, val, 'Farmers');
+                var emptyClass = (String(val).trim() === '' || val === 0) ? ' class="db-empty-cell"' : '';
+                html += '<td' + emptyClass + '>' + escapeHtml(String(val)) + '</td>';
+            }
         });
         html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
+        html += getActivityBtn('Farmers', f.Farmer_ID, f.Activity);
         html += '<button class="db-action-btn btn-view" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-eye"></i></button>';
         if (userPermissions.canEdit) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-edit"></i></button>';
         if (userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-trash"></i></button>';
@@ -4977,14 +5072,19 @@ function dbRenderChildTable(farmerId, type, idCol) {
         visibleKeys.forEach(function (k) {
             var val = row[k];
             if (val === undefined || val === null) val = '';
-            val = resolveValue(k, val, type);
-            var isNum = typeof val === 'number' || (!isNaN(parseFloat(val)) && isFinite(val) && String(val).trim() !== '');
-            var emptyClass = (String(val).trim() === '' || val === 0) ? ' db-empty-cell' : '';
-            var numClass = (isNum && !emptyClass) ? ' num-col' : '';
-            html += '<td class="' + emptyClass + numClass + '">' + escapeHtml(String(val)) + '</td>';
+            if (k === 'Activity') {
+                html += '<td>' + formatActivity(val) + '</td>';
+            } else {
+                val = resolveValue(k, val, type);
+                var isNum = typeof val === 'number' || (!isNaN(parseFloat(val)) && isFinite(val) && String(val).trim() !== '');
+                var emptyClass = (String(val).trim() === '' || val === 0) ? ' db-empty-cell' : '';
+                var numClass = (isNum && !emptyClass) ? ' num-col' : '';
+                html += '<td class="' + emptyClass + numClass + '">' + escapeHtml(String(val)) + '</td>';
+            }
         });
         if (userPermissions.canEdit || userPermissions.canDelete) {
             html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
+            if (type === 'Plots' || type === 'Yearly_Data') html += getActivityBtn(type, itemId, row.Activity);
             if (userPermissions.canEdit) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-edit"></i></button>';
             if (userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-trash"></i></button>';
             html += '</td>';
