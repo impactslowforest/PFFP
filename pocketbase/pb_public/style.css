@@ -1080,6 +1080,17 @@ body.tab-charts .search-bar-wrapper {
     transform: scale(1.1);
 }
 
+/* Activity status icons (before name/ID in lists) */
+.activity-icon-done {
+    color: #1976D2;
+    font-size: 1.1rem;
+}
+
+.activity-icon-ny {
+    color: #E91E63;
+    font-size: 1.1rem;
+}
+
 /* Search row highlight */
 .search-highlight-row {
     background-color: #fff9c4 !important;

@@ -1748,7 +1748,7 @@ function renderPlotGridWithSupport(plots, farmerId) {
 
         html += '<div class="child-card-wrapper mb-4 p-3 border rounded bg-white shadow-sm position-relative">';
         html += '<div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">';
-        html += '<div class="fw-bold text-success"><i class="fas fa-map"></i> ' + (idx + 1) + '. ' + plotId + ' ' + formatActivity(plot.Activity) + '</div>';
+        html += '<div class="fw-bold text-success">' + getActivityIcon('Plots', plotId, plot.Activity) + (idx + 1) + '. ' + plotId + '</div>';
         html += '<div class="no-print d-flex gap-2">';
         html += getActivityBtnCard('Plots', plotId, plot.Activity);
         html += '<button class="btn btn-sm btn-warning no-print" onclick="openEditForm(\'Plots\', \'' + plotId + '\')"><i class="fas fa-edit"></i></button>';
@@ -2316,7 +2316,7 @@ function renderChildGrid(data, type) {
         html += `
             <div class="child-card-wrapper mb-4 p-3 border rounded bg-white shadow-sm position-relative">
                 <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                    <div class="fw-bold text-success"><i class="fas fa-tag"></i> ${idx + 1}. ${item[idKey] || ''} ${formatActivity(item.Activity)}</div>
+                    <div class="fw-bold text-success">${(type === 'Plots' || type === 'Yearly_Data') ? getActivityIcon(type, item[idKey], item.Activity) : '<i class="fas fa-tag"></i> '}${idx + 1}. ${item[idKey] || ''}</div>
                     <div class="no-print d-flex gap-2">
                         ${actBtnHtml}
                         <button class="btn btn-sm btn-warning no-print" onclick="openEditForm('${type}', '${item[idKey]}')"><i class="fas fa-edit"></i></button>
@@ -3672,25 +3672,40 @@ function formatActivity(actVal) {
 }
 
 // === ACTIVITY APPROVAL SYSTEM ===
+
+// Status icon shown BEFORE name/ID in lists (tick blue = Done, eye red = NY)
+function getActivityIcon(type, itemId, activityVal) {
+    var isDone = (activityVal || '').trim() === 'Done';
+    if (isDone) {
+        return '<i class="fas fa-check-circle activity-icon-done" title="Done"></i> ';
+    } else {
+        return '<i class="fas fa-eye activity-icon-ny" style="cursor:pointer" title="Need review" onclick="event.stopPropagation(); reviewActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"></i> ';
+    }
+}
+
+// Check if a farmer can be approved (all Plots + Yearly_Data must be Done)
+function canApproveFarmer(farmerId) {
+    var relatedPlots = (rawData.plots || []).filter(function(p) { return String(p.Farmer_ID) === String(farmerId); });
+    var relatedYearly = (rawData.yearly || []).filter(function(y) { return String(y.Farmer_ID) === String(farmerId); });
+    var plotsNotDone = relatedPlots.filter(function(p) { return (p.Activity || '').trim() !== 'Done'; });
+    var yearlyNotDone = relatedYearly.filter(function(y) { return (y.Activity || '').trim() !== 'Done'; });
+    return { canApprove: plotsNotDone.length === 0 && yearlyNotDone.length === 0, plotsNotDone: plotsNotDone.length, yearlyNotDone: yearlyNotDone.length, totalPlots: relatedPlots.length, totalYearly: relatedYearly.length };
+}
+
 async function approveActivity(type, itemId) {
     var isVi = currentLang === 'vi';
 
     // For Farmers: check all related Plots + Yearly_Data are Done first
     if (type === 'Farmers') {
-        var relatedPlots = (rawData.plots || []).filter(function(p) { return String(p.Farmer_ID) === String(itemId); });
-        var relatedYearly = (rawData.yearly || []).filter(function(y) { return String(y.Farmer_ID) === String(itemId); });
-
-        var plotsNotDone = relatedPlots.filter(function(p) { return (p.Activity || '').trim() !== 'Done'; });
-        var yearlyNotDone = relatedYearly.filter(function(y) { return (y.Activity || '').trim() !== 'Done'; });
-
-        if (plotsNotDone.length > 0 || yearlyNotDone.length > 0) {
+        var check = canApproveFarmer(itemId);
+        if (!check.canApprove) {
             var msg = isVi
                 ? 'Không thể phê duyệt hộ dân này!\n\n'
-                  + (plotsNotDone.length ? '- ' + plotsNotDone.length + ' lô đất chưa phê duyệt\n' : '')
-                  + (yearlyNotDone.length ? '- ' + yearlyNotDone.length + ' dữ liệu hàng năm chưa phê duyệt' : '')
+                  + (check.plotsNotDone ? '- ' + check.plotsNotDone + '/' + check.totalPlots + ' lô đất chưa phê duyệt\n' : '')
+                  + (check.yearlyNotDone ? '- ' + check.yearlyNotDone + '/' + check.totalYearly + ' dữ liệu hàng năm chưa phê duyệt' : '')
                 : 'Cannot approve this farmer!\n\n'
-                  + (plotsNotDone.length ? '- ' + plotsNotDone.length + ' plots not approved\n' : '')
-                  + (yearlyNotDone.length ? '- ' + yearlyNotDone.length + ' yearly data not approved' : '');
+                  + (check.plotsNotDone ? '- ' + check.plotsNotDone + '/' + check.totalPlots + ' plots not approved\n' : '')
+                  + (check.yearlyNotDone ? '- ' + check.yearlyNotDone + '/' + check.totalYearly + ' yearly data not approved' : '');
             alert(msg);
             return;
         }
@@ -3721,15 +3736,23 @@ function reviewActivity(type, itemId) {
 }
 
 // Generate approve/review button for data browser tables
+// Approve for done: ONLY when NY (and for Farmers: all children Done)
+// Check again: ONLY when already Done
 function getActivityBtn(type, itemId, activityVal) {
     if (!userPermissions.canEdit) return '';
     var isDone = (activityVal || '').trim() === 'Done';
 
     if (isDone) {
+        // Already approved → show "Check again"
         return '<button class="db-action-btn btn-review" onclick="event.stopPropagation(); reviewActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')" title="Check again"><i class="fas fa-eye"></i></button>';
-    } else {
-        return '<button class="db-action-btn btn-approve" onclick="event.stopPropagation(); approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')" title="Approve for done"><i class="fas fa-check"></i></button>';
     }
+
+    // Not approved yet → show "Approve for done" (with conditions for Farmers)
+    if (type === 'Farmers') {
+        var check = canApproveFarmer(itemId);
+        if (!check.canApprove) return ''; // Hide button if children not all Done
+    }
+    return '<button class="db-action-btn btn-approve" onclick="event.stopPropagation(); approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')" title="Approve for done"><i class="fas fa-check"></i></button>';
 }
 
 // Generate approve/review button for card view (farmer detail)
@@ -3739,9 +3762,13 @@ function getActivityBtnCard(type, itemId, activityVal) {
 
     if (isDone) {
         return '<button class="btn btn-sm no-print" style="background:#E91E63;color:#fff;border-radius:20px;" onclick="reviewActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-eye me-1"></i>Check again</button>';
-    } else {
-        return '<button class="btn btn-sm no-print" style="background:#2E7D32;color:#fff;border-radius:20px;" onclick="approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-check me-1"></i>Approve for done</button>';
     }
+
+    if (type === 'Farmers') {
+        var check = canApproveFarmer(itemId);
+        if (!check.canApprove) return '';
+    }
+    return '<button class="btn btn-sm no-print" style="background:#2E7D32;color:#fff;border-radius:20px;" onclick="approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-check me-1"></i>Approve for done</button>';
 }
 // === END ACTIVITY APPROVAL SYSTEM ===
 
@@ -4916,6 +4943,9 @@ function dbRenderFarmers() {
             if (val === undefined || val === null) val = '';
             if (k === 'Activity') {
                 html += '<td>' + formatActivity(val) + '</td>';
+            } else if (k === 'Full_Name') {
+                val = resolveValue(k, val, 'Farmers');
+                html += '<td>' + getActivityIcon('Farmers', f.Farmer_ID, f.Activity) + escapeHtml(String(val)) + '</td>';
             } else {
                 val = resolveValue(k, val, 'Farmers');
                 var emptyClass = (String(val).trim() === '' || val === 0) ? ' class="db-empty-cell"' : '';
@@ -5069,6 +5099,7 @@ function dbRenderChildTable(farmerId, type, idCol) {
         var itemId = row[idCol] || '';
         html += '<tr data-id="' + escapeHtml(itemId) + '" data-type="' + type + '" onclick="dbRowClick(event, \'' + type + '\', \'' + escapeHtml(itemId) + '\')">';
         html += '<td>' + (idx + 1) + '</td>';
+        var firstCol = true;
         visibleKeys.forEach(function (k) {
             var val = row[k];
             if (val === undefined || val === null) val = '';
@@ -5079,8 +5110,13 @@ function dbRenderChildTable(farmerId, type, idCol) {
                 var isNum = typeof val === 'number' || (!isNaN(parseFloat(val)) && isFinite(val) && String(val).trim() !== '');
                 var emptyClass = (String(val).trim() === '' || val === 0) ? ' db-empty-cell' : '';
                 var numClass = (isNum && !emptyClass) ? ' num-col' : '';
-                html += '<td class="' + emptyClass + numClass + '">' + escapeHtml(String(val)) + '</td>';
+                var iconPrefix = '';
+                if (firstCol && (type === 'Plots' || type === 'Yearly_Data')) {
+                    iconPrefix = getActivityIcon(type, itemId, row.Activity);
+                }
+                html += '<td class="' + emptyClass + numClass + '">' + iconPrefix + escapeHtml(String(val)) + '</td>';
             }
+            firstCol = false;
         });
         if (userPermissions.canEdit || userPermissions.canDelete) {
             html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
