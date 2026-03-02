@@ -11,7 +11,7 @@ const TABLE_MAP = {
     'Admin':                { table: 'admin',                idCol: 'Adm_ID' },
     'Training':             { table: 'training_list',        idCol: 'Train_ID' }
 };
-const CACHE_KEY = "PFFP_DATA_CACHE_v3";
+const CACHE_KEY = "PFFP_DATA_CACHE_v4";
 const CACHE_TTL = 60 * 60 * 1000; // 1 giờ (milliseconds)
 // ==========================================================
 // GLOBAL STATE
@@ -1173,6 +1173,17 @@ function applyFilter() {
             if (fSp !== 'All') { let s = f._supportedByArr; if (!(s.length === 0 && fSp.length === 0) && !s.some(i => fSp.includes(i))) return false; }
             return true;
         });
+
+        // yearEval filter: keep only farmers whose Participation Year <= selected eval years
+        if (fYE !== 'All') {
+            var maxEvalNum = 0;
+            fYE.forEach(function (v) { var n = parseInt(String(v).replace(/\D/g, '')); if (n > maxEvalNum) maxEvalNum = n; });
+            filtF = filtF.filter(function (f) {
+                var py = String(f['Participation Year'] || '');
+                var pyNum = parseInt(py.replace(/\D/g, ''));
+                return !isNaN(pyNum) && pyNum <= maxEvalNum;
+            });
+        }
 
         let fIDs = new Set(filtF.map(f => f['Farmer_ID']));
         let filtY = (rawData.yearly || []).filter(y => { if (fYE !== 'All' && !fYE.includes(y['Year'])) return false; if (fSpec !== 'All') { let s = y._speciesArr; if (fSpec.length === 0 || !s.some(z => fSpec.includes(z))) return false; } return fIDs.has(y['Farmer_ID']); });
