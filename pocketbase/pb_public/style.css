@@ -1086,6 +1086,11 @@ body.tab-charts .search-bar-wrapper {
     font-size: 1.1rem;
 }
 
+.activity-icon-ny {
+    color: #d32f2f;
+    font-size: 1.1rem;
+}
+
 /* Search row highlight */
 .search-highlight-row {
     background-color: #fff9c4 !important;

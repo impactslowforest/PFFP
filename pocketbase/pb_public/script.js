@@ -3702,7 +3702,7 @@ function getActivityIcon(type, itemId, activityVal) {
     if (isDone) {
         return '<i class="fas fa-check-circle activity-icon-done" title="Done"></i> ';
     } else {
-        return '';
+        return '<i class="fas fa-times-circle activity-icon-ny" title="NY"></i> ';
     }
 }
 
