@@ -6336,9 +6336,12 @@ function showKpiDrilldown(kpiType) {
     // --- Special: Completion Rate — Groups with completion bars, sorted desc ---
     if (kpiType === 'completionRate') {
         var grpComp = {};
-        farmers.filter(function (f) { return (f.Status || '').trim() !== 'InA'; }).forEach(function (f) {
+        // Build from ALL farmers (keep all groups visible), track InA separately
+        farmers.forEach(function (f) {
             var g = f.Farmer_Group_Name || 'N/A';
-            if (!grpComp[g]) grpComp[g] = { total: 0, done: 0 };
+            if (!grpComp[g]) grpComp[g] = { total: 0, done: 0, ina: 0 };
+            var isInA = (f.Status || '').trim() === 'InA';
+            if (isInA) { grpComp[g].ina++; return; }
             grpComp[g].total++;
             if ((f.Activity || '').trim() === 'Done') grpComp[g].done++;
         });
@@ -6349,14 +6352,18 @@ function showKpiDrilldown(kpiType) {
             return rb - ra;
         });
         var totalDone = cKeys.reduce(function (s, g) { return s + grpComp[g].done; }, 0);
-        var totalAll = cKeys.reduce(function (s, g) { return s + grpComp[g].total; }, 0);
-        var overallRate = totalAll > 0 ? (totalDone / totalAll * 100).toFixed(1) : '0';
-        var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'Tổng: ' : 'Overall: ') + '<strong>' + totalDone + '/' + totalAll + ' (' + overallRate + '%)</strong></p>';
+        var totalActive = cKeys.reduce(function (s, g) { return s + grpComp[g].total; }, 0);
+        var totalInA = cKeys.reduce(function (s, g) { return s + grpComp[g].ina; }, 0);
+        var overallRate = totalActive > 0 ? (totalDone / totalActive * 100).toFixed(1) : '0';
+        var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'Tổng: ' : 'Overall: ') + '<strong>' + totalDone + '/' + totalActive + ' (' + overallRate + '%)</strong>';
+        if (totalInA > 0) html += ' <span class="text-secondary">| InA: ' + totalInA + '</span>';
+        html += '</p>';
         html += '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
         html += '<thead class="table-custom-header"><tr><th>#</th>';
         html += '<th>' + (isVi ? 'Nhóm hộ' : 'Group') + '</th>';
         html += '<th>' + (isVi ? 'Hoàn thành' : 'Done') + '</th>';
-        html += '<th>' + (isVi ? 'Tổng' : 'Total') + '</th>';
+        html += '<th>' + (isVi ? 'Active' : 'Active') + '</th>';
+        if (totalInA > 0) html += '<th>InA</th>';
         html += '<th>' + (isVi ? 'Tỷ lệ' : 'Rate') + '</th>';
         html += '<th style="min-width:120px"></th>';
         html += '</tr></thead><tbody>';
@@ -6370,6 +6377,7 @@ function showKpiDrilldown(kpiType) {
             html += '<td>' + escapeHtml(gLabel) + '</td>';
             html += '<td class="fw-bold">' + st.done + '</td>';
             html += '<td>' + st.total + '</td>';
+            if (totalInA > 0) html += '<td class="text-secondary">' + st.ina + '</td>';
             html += '<td>' + rate.toFixed(1) + '%</td>';
             html += '<td><div class="kpi-drill-bar"><div class="kpi-drill-bar-fill' + barClass + '" style="width:' + rate + '%"></div></div></td>';
             html += '</tr>';
@@ -6746,26 +6754,28 @@ function kpiDrillFemaleGroup(groupCode) {
     kpiDrillPush(title, html);
 }
 
-// Completion Rate → Group → Farmer list with status (exclude InA)
+// Completion Rate → Group → Farmer list with status (show InA separately)
 function kpiDrillCompletionGroup(groupCode) {
     var isVi = currentLang === 'vi';
-    var farmers = (filteredData.farmers || []).filter(function (f) { return (f.Status || '').trim() !== 'InA'; });
-    var list = farmers.filter(function (f) { return (f.Farmer_Group_Name || 'N/A') === groupCode; });
-    list.sort(function (a, b) {
+    var allInGroup = (filteredData.farmers || []).filter(function (f) { return (f.Farmer_Group_Name || 'N/A') === groupCode; });
+    var activeList = allInGroup.filter(function (f) { return (f.Status || '').trim() !== 'InA'; });
+    var inaList = allInGroup.filter(function (f) { return (f.Status || '').trim() === 'InA'; });
+    activeList.sort(function (a, b) {
         var da = (a.Activity || '').trim() === 'Done' ? 0 : 1;
         var db = (b.Activity || '').trim() === 'Done' ? 0 : 1;
         return da - db || (a.Full_Name || '').localeCompare(b.Full_Name || '');
     });
     var gLabel = adminMap[groupCode] ? (isVi ? adminMap[groupCode].vi : adminMap[groupCode].en) || groupCode : groupCode;
-    var doneCount = list.filter(function (f) { return (f.Activity || '').trim() === 'Done'; }).length;
-    var title = gLabel + ' (' + doneCount + '/' + list.length + ')';
+    var doneCount = activeList.filter(function (f) { return (f.Activity || '').trim() === 'Done'; }).length;
+    var title = gLabel + ' (' + doneCount + '/' + activeList.length + ')';
+    if (inaList.length > 0) title += ' | InA: ' + inaList.length;
     var html = '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
     html += '<thead class="table-custom-header"><tr><th>#</th>';
     html += '<th>' + (isVi ? 'Hộ dân' : 'Farmer') + '</th>';
     html += '<th>' + (isVi ? 'Trạng thái' : 'Status') + '</th>';
     html += '<th>' + (isVi ? 'DT (ha)' : 'Area') + '</th>';
     html += '</tr></thead><tbody>';
-    list.forEach(function (f, i) {
+    activeList.forEach(function (f, i) {
         var isDone = (f.Activity || '').trim() === 'Done';
         html += '<tr class="kpi-drill-row' + (isDone ? ' table-success' : '') + '" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')">';
         html += '<td>' + (i + 1) + '</td>';
@@ -6774,7 +6784,19 @@ function kpiDrillCompletionGroup(groupCode) {
         html += '<td>' + (parseFloat(f.Total_Coffee_Area) || 0).toFixed(2) + '</td>';
         html += '</tr>';
     });
-    if (list.length === 0) html += '<tr><td colspan="4" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
+    // Show InA farmers in separate section
+    if (inaList.length > 0) {
+        html += '<tr><td colspan="4" class="text-center text-secondary py-2" style="background:#f5f5f5;font-weight:600;">' + (isVi ? 'Hộ đã loại (InA): ' : 'Removed (InA): ') + inaList.length + '</td></tr>';
+        inaList.forEach(function (f, i) {
+            html += '<tr class="kpi-drill-row" style="opacity:0.5;" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')">';
+            html += '<td>' + (activeList.length + i + 1) + '</td>';
+            html += '<td>' + escapeHtml(f.Full_Name || f.Farmer_ID) + '</td>';
+            html += '<td><i class="fas fa-ban text-secondary"></i> InA</td>';
+            html += '<td>' + (parseFloat(f.Total_Coffee_Area) || 0).toFixed(2) + '</td>';
+            html += '</tr>';
+        });
+    }
+    if (allInGroup.length === 0) html += '<tr><td colspan="4" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
     html += '</tbody></table></div>';
     kpiDrillPush(title, html);
 }
