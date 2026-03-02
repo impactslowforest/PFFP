@@ -1179,7 +1179,18 @@ function applyFilter() {
 
         if (fSpec !== 'All') { let fIDSpec = new Set(filtY.map(y => y['Farmer_ID'])); filtF = filtF.filter(f => fIDSpec.has(f['Farmer_ID'])); fIDs = fIDSpec; }
         let filtP = (rawData.plots || []).filter(p => fIDs.has(p['Farmer_ID']));
-        let filtS = (rawData.supported || []).filter(s => fIDs.has(s['Farmer ID'] || s.Farmer_ID));
+        let filtS = (rawData.supported || []).filter(s => {
+            if (!fIDs.has(s['Farmer ID'] || s.Farmer_ID)) return false;
+            if (fYSup !== 'All') {
+                var sy = String(s['Supported year'] || s.Supported_year || '');
+                if (!fYSup.includes(sy)) return false;
+            }
+            if (fST !== 'All') {
+                var sc = String(s['Support code'] || s.Support_code || '');
+                if (!fST.includes(sc)) return false;
+            }
+            return true;
+        });
         filteredData = { farmers: filtF, plots: filtP, yearly: filtY, supported: filtS };
         updateUI(filtF, filtP, filtY, filtS);
     });
