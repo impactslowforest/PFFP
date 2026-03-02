@@ -1308,8 +1308,9 @@ function drawCharts(farmers, plots, yearly) {
     // 3. Completion (Pie - Count) - REPLACED or NEW CHART POSITION
     // Ban đầu là chartCompletion, chart3, chart4, v.v.
     // Ta sẽ vẽ chartCompletion vào chartCompletion (vị trí 3 cũ, nay ở giữa)
+    let activeFmrs = farmers.filter(f => (f['Status'] || '').trim() !== 'InA');
     let doneC = 0, nyC = 0;
-    farmers.forEach(f => { if ((f['Activity'] || 'NY').trim() === 'Done') doneC++; else nyC++; });
+    activeFmrs.forEach(f => { if ((f['Activity'] || 'NY').trim() === 'Done') doneC++; else nyC++; });
     renderChart('chartCompletion', 'pie', ['Done', 'NY'], [{ data: [doneC, nyC], backgroundColor: [APP_COLORS[0], '#FFC107'] }],
         {
             plugins: {
@@ -6335,7 +6336,7 @@ function showKpiDrilldown(kpiType) {
     // --- Special: Completion Rate — Groups with completion bars, sorted desc ---
     if (kpiType === 'completionRate') {
         var grpComp = {};
-        farmers.forEach(function (f) {
+        farmers.filter(function (f) { return (f.Status || '').trim() !== 'InA'; }).forEach(function (f) {
             var g = f.Farmer_Group_Name || 'N/A';
             if (!grpComp[g]) grpComp[g] = { total: 0, done: 0 };
             grpComp[g].total++;
@@ -6745,10 +6746,10 @@ function kpiDrillFemaleGroup(groupCode) {
     kpiDrillPush(title, html);
 }
 
-// Completion Rate → Group → Farmer list with status
+// Completion Rate → Group → Farmer list with status (exclude InA)
 function kpiDrillCompletionGroup(groupCode) {
     var isVi = currentLang === 'vi';
-    var farmers = filteredData.farmers || [];
+    var farmers = (filteredData.farmers || []).filter(function (f) { return (f.Status || '').trim() !== 'InA'; });
     var list = farmers.filter(function (f) { return (f.Farmer_Group_Name || 'N/A') === groupCode; });
     list.sort(function (a, b) {
         var da = (a.Activity || '').trim() === 'Done' ? 0 : 1;
