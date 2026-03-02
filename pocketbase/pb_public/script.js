@@ -6258,18 +6258,36 @@ function showKpiDrilldown(kpiType) {
 
     // --- Special flat table: Groups ---
     if (kpiType === 'totalGroups') {
-        var groupFarmers = {};
-        farmers.forEach(function (f) { var g = f.Farmer_Group_Name || 'N/A'; if (!groupFarmers[g]) groupFarmers[g] = []; groupFarmers[g].push(f); });
-        var gKeys = Object.keys(groupFarmers).sort();
-        var html = '<div class="table-responsive"><table class="table table-sm table-striped table-hover" style="font-size:0.82rem;">';
-        html += '<thead class="table-custom-header"><tr><th>#</th><th>' + (isVi ? 'Nhóm hộ' : 'Group') + '</th><th>' + (isVi ? 'Số hộ' : 'Farmers') + '</th><th>' + (isVi ? 'Tổng DT' : 'Area') + '</th></tr></thead><tbody>';
-        gKeys.forEach(function (g, i) {
-            var list = groupFarmers[g];
-            var totalArea = list.reduce(function (s, f) { return s + (parseFloat(f.Total_Coffee_Area) || 0); }, 0);
-            var gLabel = adminMap[g] ? (isVi ? adminMap[g].vi : adminMap[g].en) || g : g;
-            html += '<tr class="kpi-drill-row" onclick="kpiDrillGroupFarmers(\'' + escapeHtml(g) + '\')"><td>' + (i + 1) + '</td><td>' + escapeHtml(gLabel) + '</td><td>' + list.length + '</td><td>' + totalArea.toFixed(2) + ' ha</td></tr>';
+        var grpStats = {};
+        farmers.forEach(function (f) {
+            var g = f.Farmer_Group_Name || 'N/A';
+            if (!grpStats[g]) grpStats[g] = { act: 0, ina: 0, area: 0 };
+            var isInA = (f.Status || '').trim() === 'InA';
+            if (isInA) grpStats[g].ina++;
+            else grpStats[g].act++;
+            grpStats[g].area += (parseFloat(f.Total_Coffee_Area) || 0);
         });
-        if (gKeys.length === 0) html += '<tr><td colspan="4" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
+        var gKeys = Object.keys(grpStats).sort();
+        var totalAct = 0, totalInA = 0, totalArea = 0;
+        gKeys.forEach(function (g) { totalAct += grpStats[g].act; totalInA += grpStats[g].ina; totalArea += grpStats[g].area; });
+        var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'Tổng: ' : 'Total: ') + '<strong>' + (totalAct + totalInA) + '</strong> (' + (isVi ? 'Active: ' : 'Active: ') + totalAct;
+        if (totalInA > 0) html += ', InA: ' + totalInA;
+        html += ')</p>';
+        html += '<div class="table-responsive"><table class="table table-sm table-striped table-hover" style="font-size:0.82rem;">';
+        html += '<thead class="table-custom-header"><tr><th>#</th><th>' + (isVi ? 'Nhóm hộ' : 'Group') + '</th><th>Active</th>';
+        if (totalInA > 0) html += '<th>InA</th>';
+        html += '<th>' + (isVi ? 'Tổng' : 'Total') + '</th><th>' + (isVi ? 'Tổng DT' : 'Area') + '</th></tr></thead><tbody>';
+        gKeys.forEach(function (g, i) {
+            var st = grpStats[g];
+            var gLabel = adminMap[g] ? (isVi ? adminMap[g].vi : adminMap[g].en) || g : g;
+            html += '<tr class="kpi-drill-row" onclick="kpiDrillGroupFarmers(\'' + escapeHtml(g) + '\')">';
+            html += '<td>' + (i + 1) + '</td><td>' + escapeHtml(gLabel) + '</td>';
+            html += '<td class="fw-bold">' + st.act + '</td>';
+            if (totalInA > 0) html += '<td class="text-secondary">' + st.ina + '</td>';
+            html += '<td>' + (st.act + st.ina) + '</td>';
+            html += '<td>' + st.area.toFixed(2) + ' ha</td></tr>';
+        });
+        if (gKeys.length === 0) html += '<tr><td colspan="6" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
         html += '</tbody></table></div>';
         $('#farmerDetailTitle').text(title + ' (' + gKeys.length + ')');
         $('#detailContent').html(html);
