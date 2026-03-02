@@ -4974,7 +4974,6 @@ function dbRenderFarmers() {
             }
         });
         html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
-        html += getActivityBtn('Farmers', f.Farmer_ID, f.Activity);
         html += '<button class="db-action-btn btn-view" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-eye"></i></button>';
         if (canEditRecord(f)) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-edit"></i></button>';
         if (canEditRecord(f) && userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-trash"></i></button>';
