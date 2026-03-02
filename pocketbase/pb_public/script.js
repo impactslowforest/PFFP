@@ -1708,7 +1708,7 @@ function showFarmerDetails(farmerId) {
     // Approve/Review button (requires canApprove permission)
     if (userPermissions.canApprove) {
         if (farmerIsDone) {
-            buttonsHtml += `<button type="button" class="btn" style="background:#E91E63;color:#fff;" onclick="reviewActivity('Farmers','${farmerId}')"><i class="fas fa-eye me-1"></i>Check again</button>`;
+            buttonsHtml += `<button type="button" class="btn" style="background:#43A047;color:#fff;" onclick="reviewActivity('Farmers','${farmerId}')"><i class="fas fa-eye me-1"></i>Check again</button>`;
         } else {
             var farmerCheck = canApproveFarmer(farmerId);
             if (farmerCheck.canApprove) {
@@ -1720,7 +1720,7 @@ function showFarmerDetails(farmerId) {
     if (canEditRecord(farmer)) {
         buttonsHtml += `<button type="button" class="btn btn-warning" onclick="editFarmer('${farmerId}')"><i class="fas fa-edit"></i> ${currentLang === 'vi' ? 'Sửa' : 'Edit'}</button>`;
     }
-    if (userPermissions.canDelete) {
+    if (canEditRecord(farmer) && userPermissions.canDelete) {
         buttonsHtml += `<button type="button" class="btn btn-danger" onclick="deleteFarmer('${farmerId}')"><i class="fas fa-trash"></i> ${currentLang === 'vi' ? 'Xóa' : 'Del'}</button>`;
     }
     $('#modalActions').html(buttonsHtml);
@@ -3702,7 +3702,7 @@ function getActivityIcon(type, itemId, activityVal) {
     if (isDone) {
         return '<i class="fas fa-check-circle activity-icon-done" title="Done"></i> ';
     } else {
-        return '<i class="fas fa-eye activity-icon-ny" style="cursor:pointer" title="Need review" onclick="event.stopPropagation(); reviewActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"></i> ';
+        return '';
     }
 }
 
@@ -3773,7 +3773,7 @@ function getActivityBtn(type, itemId, activityVal) {
         var check = canApproveFarmer(itemId);
         if (!check.canApprove) return '';
     }
-    return '<button class="db-action-btn btn-approve" onclick="event.stopPropagation(); approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')" title="Approve for done"><i class="fas fa-check"></i></button>';
+    return '<button class="db-action-btn btn-approve" onclick="event.stopPropagation(); approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')" title="Approve for done"><i class="fas fa-check-circle"></i></button>';
 }
 
 // Generate approve/review button for card view (farmer detail)
@@ -3782,14 +3782,14 @@ function getActivityBtnCard(type, itemId, activityVal) {
     var isDone = (activityVal || '').trim() === 'Done';
 
     if (isDone) {
-        return '<button class="btn btn-sm no-print" style="background:#E91E63;color:#fff;border-radius:20px;" onclick="reviewActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-eye me-1"></i>Check again</button>';
+        return '<button class="btn btn-sm no-print" style="background:#43A047;color:#fff;border-radius:20px;" onclick="reviewActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-eye me-1"></i>Check again</button>';
     }
 
     if (type === 'Farmers') {
         var check = canApproveFarmer(itemId);
         if (!check.canApprove) return '';
     }
-    return '<button class="btn btn-sm no-print" style="background:#2E7D32;color:#fff;border-radius:20px;" onclick="approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-check me-1"></i>Approve for done</button>';
+    return '<button class="btn btn-sm no-print" style="background:#2E7D32;color:#fff;border-radius:20px;" onclick="approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-check-circle me-1"></i>Approve for done</button>';
 }
 // === END ACTIVITY APPROVAL SYSTEM ===
 

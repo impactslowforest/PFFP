@@ -1062,10 +1062,10 @@ body.tab-charts .search-bar-wrapper {
     transform: scale(1.1);
 }
 
-/* Check again button (magenta/pink) */
+/* Check again button (fresh green) */
 .db-action-btn.btn-review {
     color: #fff;
-    background: #E91E63;
+    background: #43A047;
     border-radius: 50%;
     width: 32px;
     height: 32px;
@@ -1076,18 +1076,13 @@ body.tab-charts .search-bar-wrapper {
 }
 
 .db-action-btn.btn-review:hover {
-    background: #C2185B;
+    background: #2E7D32;
     transform: scale(1.1);
 }
 
 /* Activity status icons (before name/ID in lists) */
 .activity-icon-done {
     color: #1976D2;
-    font-size: 1.1rem;
-}
-
-.activity-icon-ny {
-    color: #E91E63;
     font-size: 1.1rem;
 }
 
