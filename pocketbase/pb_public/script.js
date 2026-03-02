@@ -1240,14 +1240,12 @@ function updateUI(f, p, y, s) {
     $('#kpi6').text(suppSpecies.size);
     // KPI7: Farmer groups
     let vS = new Set(); f.forEach(i => { if (i['Farmer_Group_Name']) vS.add(i['Farmer_Group_Name']); }); $('#kpi7').text(vS.size);
-    // KPI8: Completion rate = YD Activity='Done' (filtered) / Farmers Status!=InA (filtered)
-    let activeFarmers = f.filter(i => (i['Status'] || '').trim() !== 'InA');
-    let ydDoneFids = new Set();
-    y.forEach(r => { if ((r['Activity'] || '').trim() === 'Done') ydDoneFids.add(r['Farmer_ID']); });
-    let dC = activeFarmers.filter(i => ydDoneFids.has(i['Farmer_ID'])).length;
-    let kpi8Pct = activeFarmers.length > 0 ? (dC / activeFarmers.length * 100).toFixed(2) + '%' : '0.00%';
+    // KPI8: Completion = YD.Activity='Done' / YD.Status='Act' (entirely from filtered Yearly_Data)
+    let ydAct = y.filter(r => (r['Status'] || '').trim() === 'Act');
+    let dC = ydAct.filter(r => (r['Activity'] || '').trim() === 'Done').length;
+    let kpi8Pct = ydAct.length > 0 ? (dC / ydAct.length * 100).toFixed(2) + '%' : '0.00%';
     $('#kpi8').text(kpi8Pct);
-    $('#kpi8').attr('title', dC + '/' + activeFarmers.length + ' (excl. InA)');
+    $('#kpi8').attr('title', dC + '/' + ydAct.length + ' (YD Act)');
     // KPI9: Survival rate from Supported (ONLY evaluated records - A_live has value, including 0)
     var evaluatedRecs = treeRecs.filter(x => { var a = (x['A live'] !== undefined ? x['A live'] : x.A_live); return a !== null && a !== '' && a !== undefined && String(a).trim() !== ''; });
     var evalQty = evaluatedRecs.reduce((ss, x) => ss + (parseFloat(x.Quantity) || 0), 0);
@@ -1333,11 +1331,9 @@ function drawCharts(farmers, plots, yearly) {
     // 3. Completion (Pie - Count) - REPLACED or NEW CHART POSITION
     // Ban đầu là chartCompletion, chart3, chart4, v.v.
     // Ta sẽ vẽ chartCompletion vào chartCompletion (vị trí 3 cũ, nay ở giữa)
-    let activeFmrs = farmers.filter(f => (f['Status'] || '').trim() !== 'InA');
-    let ydDonePie = new Set();
-    yearly.forEach(r => { if ((r['Activity'] || '').trim() === 'Done') ydDonePie.add(r['Farmer_ID']); });
-    let doneC = 0, nyC = 0;
-    activeFmrs.forEach(f => { if (ydDonePie.has(f['Farmer_ID'])) doneC++; else nyC++; });
+    let ydActPie = yearly.filter(r => (r['Status'] || '').trim() === 'Act');
+    let doneC = ydActPie.filter(r => (r['Activity'] || '').trim() === 'Done').length;
+    let nyC = ydActPie.length - doneC;
     renderChart('chartCompletion', 'pie', ['Done', 'NY'], [{ data: [doneC, nyC], backgroundColor: [APP_COLORS[0], '#FFC107'] }],
         {
             plugins: {
@@ -6381,18 +6377,22 @@ function showKpiDrilldown(kpiType) {
     // --- Special: Completion Rate — Groups with completion bars, sorted desc ---
     if (kpiType === 'completionRate') {
         var grpComp = {};
-        // Completion = YD Activity='Done' / Farmers Status!=InA (filter-dependent)
-        var ydDoneDrill = {};
-        (filteredData.yearly || []).forEach(function (r) {
-            if ((r.Activity || '').trim() === 'Done') ydDoneDrill[r.Farmer_ID] = true;
-        });
-        farmers.forEach(function (f) {
-            var g = f.Farmer_Group_Name || 'N/A';
+        // Completion = YD.Activity='Done' / YD.Status='Act' (entirely from Yearly_Data)
+        // Group YD by farmer's group name
+        var fGrpMap = {};
+        farmers.forEach(function (f) { fGrpMap[f.Farmer_ID] = f.Farmer_Group_Name || 'N/A'; });
+        var ydActDrill = (filteredData.yearly || []).filter(function (r) { return (r.Status || '').trim() === 'Act'; });
+        var ydInaDrill = (filteredData.yearly || []).filter(function (r) { return (r.Status || '').trim() === 'InA'; });
+        ydActDrill.forEach(function (r) {
+            var g = fGrpMap[r.Farmer_ID] || 'N/A';
             if (!grpComp[g]) grpComp[g] = { total: 0, done: 0, ina: 0 };
-            var isInA = (f.Status || '').trim() === 'InA';
-            if (isInA) { grpComp[g].ina++; return; }
             grpComp[g].total++;
-            if (ydDoneDrill[f.Farmer_ID]) grpComp[g].done++;
+            if ((r.Activity || '').trim() === 'Done') grpComp[g].done++;
+        });
+        ydInaDrill.forEach(function (r) {
+            var g = fGrpMap[r.Farmer_ID] || 'N/A';
+            if (!grpComp[g]) grpComp[g] = { total: 0, done: 0, ina: 0 };
+            grpComp[g].ina++;
         });
         var cKeys = Object.keys(grpComp);
         cKeys.sort(function (a, b) {
@@ -6806,21 +6806,24 @@ function kpiDrillFemaleGroup(groupCode) {
 // Completion Rate → Group → Farmer list with status (show InA separately)
 function kpiDrillCompletionGroup(groupCode) {
     var isVi = currentLang === 'vi';
-    var allInGroup = (filteredData.farmers || []).filter(function (f) { return (f.Farmer_Group_Name || 'N/A') === groupCode; });
-    var activeList = allInGroup.filter(function (f) { return (f.Status || '').trim() !== 'InA'; });
-    var inaList = allInGroup.filter(function (f) { return (f.Status || '').trim() === 'InA'; });
-    // Completion based on YD Activity='Done' (filter-dependent)
-    var ydDoneGrp = {};
+    // Build YD status maps for this group's farmers (filter-dependent)
+    var ydStatusMap = {}; // fid -> YD.Status
+    var ydDoneMap = {};   // fid -> true if YD.Activity='Done'
     (filteredData.yearly || []).forEach(function (r) {
-        if ((r.Activity || '').trim() === 'Done') ydDoneGrp[r.Farmer_ID] = true;
+        ydStatusMap[r.Farmer_ID] = (r.Status || '').trim();
+        if ((r.Activity || '').trim() === 'Done') ydDoneMap[r.Farmer_ID] = true;
     });
+    var allInGroup = (filteredData.farmers || []).filter(function (f) { return (f.Farmer_Group_Name || 'N/A') === groupCode; });
+    // Filter by YD.Status: Act vs InA (from Yearly_Data, not Farmers)
+    var activeList = allInGroup.filter(function (f) { return ydStatusMap[f.Farmer_ID] === 'Act'; });
+    var inaList = allInGroup.filter(function (f) { return ydStatusMap[f.Farmer_ID] === 'InA'; });
     activeList.sort(function (a, b) {
-        var da = ydDoneGrp[a.Farmer_ID] ? 0 : 1;
-        var db = ydDoneGrp[b.Farmer_ID] ? 0 : 1;
+        var da = ydDoneMap[a.Farmer_ID] ? 0 : 1;
+        var db = ydDoneMap[b.Farmer_ID] ? 0 : 1;
         return da - db || (a.Full_Name || '').localeCompare(b.Full_Name || '');
     });
     var gLabel = adminMap[groupCode] ? (isVi ? adminMap[groupCode].vi : adminMap[groupCode].en) || groupCode : groupCode;
-    var doneCount = activeList.filter(function (f) { return ydDoneGrp[f.Farmer_ID]; }).length;
+    var doneCount = activeList.filter(function (f) { return ydDoneMap[f.Farmer_ID]; }).length;
     var title = gLabel + ' (' + doneCount + '/' + activeList.length + ')';
     if (inaList.length > 0) title += ' | InA: ' + inaList.length;
     var html = '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
@@ -6830,7 +6833,7 @@ function kpiDrillCompletionGroup(groupCode) {
     html += '<th>' + (isVi ? 'DT (ha)' : 'Area') + '</th>';
     html += '</tr></thead><tbody>';
     activeList.forEach(function (f, i) {
-        var isDone = !!ydDoneGrp[f.Farmer_ID];
+        var isDone = !!ydDoneMap[f.Farmer_ID];
         html += '<tr class="kpi-drill-row' + (isDone ? ' table-success' : '') + '" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')">';
         html += '<td>' + (i + 1) + '</td>';
         html += '<td>' + escapeHtml(f.Full_Name || f.Farmer_ID) + '</td>';
