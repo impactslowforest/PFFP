@@ -34,7 +34,7 @@ var userMap = {}; var trainingListMap = {}; var farmersMap = {}; var plotsMap = 
 const APP_COLORS = ['#2E7D32', '#43A047', '#66BB6A', '#81C784', '#A5D6A7', '#C8E6C9', '#E8F5E9'];
 // Global Permissions
 var userPermissions = {
-    canView: false, canAdd: false, canEdit: false, canDelete: false, canPrint: false, canExport: false, allowedViews: []
+    canView: false, canAdd: false, canEdit: false, canDelete: false, canPrint: false, canExport: false, canApprove: false, allowedViews: []
 };
 // DEFINITIONS
 const MANAGER_ROLES = ['11', '1a', '2a'];
@@ -809,6 +809,8 @@ function checkUserPermissions() {
     userPermissions.canDelete = ruleStr.includes('delete') || ruleStr.includes('del') || isFullAccess;
     userPermissions.canPrint = ruleStr.includes('print') || isFullAccess;
     userPermissions.canExport = ruleStr.includes('export') || isFullAccess;
+    // Approval permission: only Authority='1a' (or admin/2a)
+    userPermissions.canApprove = (auth === '1a') || isFullAccess;
     userPermissions.allowedViews = allowedViews;
 
     // Store restricted groups for reference
@@ -1703,13 +1705,19 @@ function showFarmerDetails(farmerId) {
     if (userPermissions.canExport) {
         buttonsHtml += `<button type="button" class="btn btn-success" onclick="exportDetailToExcel('${farmerId}')"><i class="fas fa-file-excel"></i> Excel</button>`;
     }
-    if (userPermissions.canEdit) {
-        // Farmer-level approve/review button
+    // Approve/Review button (requires canApprove permission)
+    if (userPermissions.canApprove) {
         if (farmerIsDone) {
             buttonsHtml += `<button type="button" class="btn" style="background:#E91E63;color:#fff;" onclick="reviewActivity('Farmers','${farmerId}')"><i class="fas fa-eye me-1"></i>Check again</button>`;
         } else {
-            buttonsHtml += `<button type="button" class="btn" style="background:#2E7D32;color:#fff;" onclick="approveActivity('Farmers','${farmerId}')"><i class="fas fa-check me-1"></i>Approve for done</button>`;
+            var farmerCheck = canApproveFarmer(farmerId);
+            if (farmerCheck.canApprove) {
+                buttonsHtml += `<button type="button" class="btn" style="background:#2E7D32;color:#fff;" onclick="approveActivity('Farmers','${farmerId}')"><i class="fas fa-check me-1"></i>Approve for done</button>`;
+            }
         }
+    }
+    // Edit button (requires canEdit + record ownership or Authority 1a/admin/2a)
+    if (canEditRecord(farmer)) {
         buttonsHtml += `<button type="button" class="btn btn-warning" onclick="editFarmer('${farmerId}')"><i class="fas fa-edit"></i> ${currentLang === 'vi' ? 'Sửa' : 'Edit'}</button>`;
     }
     if (userPermissions.canDelete) {
@@ -1751,8 +1759,8 @@ function renderPlotGridWithSupport(plots, farmerId) {
         html += '<div class="fw-bold text-success">' + getActivityIcon('Plots', plotId, plot.Activity) + (idx + 1) + '. ' + plotId + '</div>';
         html += '<div class="no-print d-flex gap-2">';
         html += getActivityBtnCard('Plots', plotId, plot.Activity);
-        html += '<button class="btn btn-sm btn-warning no-print" onclick="openEditForm(\'Plots\', \'' + plotId + '\')"><i class="fas fa-edit"></i></button>';
-        html += '<button class="btn btn-sm btn-danger no-print" onclick="deleteItem(\'Plots\', \'' + plotId + '\')"><i class="fas fa-trash"></i></button>';
+        if (canEditRecord(plot)) html += '<button class="btn btn-sm btn-warning no-print" onclick="openEditForm(\'Plots\', \'' + plotId + '\')"><i class="fas fa-edit"></i></button>';
+        if (canEditRecord(plot) && userPermissions.canDelete) html += '<button class="btn btn-sm btn-danger no-print" onclick="deleteItem(\'Plots\', \'' + plotId + '\')"><i class="fas fa-trash"></i></button>';
         html += '</div></div>';
 
         // Thông tin lô đất
@@ -2319,8 +2327,8 @@ function renderChildGrid(data, type) {
                     <div class="fw-bold text-success">${(type === 'Plots' || type === 'Yearly_Data') ? getActivityIcon(type, item[idKey], item.Activity) : '<i class="fas fa-tag"></i> '}${idx + 1}. ${item[idKey] || ''}</div>
                     <div class="no-print d-flex gap-2">
                         ${actBtnHtml}
-                        <button class="btn btn-sm btn-warning no-print" onclick="openEditForm('${type}', '${item[idKey]}')"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-sm btn-danger no-print" onclick="deleteItem('${type}', '${item[idKey]}')"><i class="fas fa-trash"></i></button>
+                        ${canEditRecord(item) ? '<button class="btn btn-sm btn-warning no-print" onclick="openEditForm(\'' + type + '\', \'' + item[idKey] + '\')"><i class="fas fa-edit"></i></button>' : ''}
+                        ${canEditRecord(item) && userPermissions.canDelete ? '<button class="btn btn-sm btn-danger no-print" onclick="deleteItem(\'' + type + '\', \'' + item[idKey] + '\')"><i class="fas fa-trash"></i></button>' : ''}
                     </div>
                 </div>
                 <div class="detail-grid-container">`;
@@ -3671,6 +3679,21 @@ function formatActivity(actVal) {
     return '<span class="' + (isDone ? 'activity-badge-done' : 'activity-badge-ny') + '">' + (isDone ? 'Done' : 'NY') + '</span>';
 }
 
+// === RECORD-LEVEL EDIT PERMISSION ===
+// Check if current user can edit a specific record
+// Rules: Authority='1a' or admin/2a → can edit all records
+//        Other users → can only edit records where Staff_input matches their Staff_ID
+function canEditRecord(record) {
+    if (!userPermissions.canEdit) return false;
+    var auth = (currentUser && currentUser['Authority']) ? String(currentUser['Authority']).trim() : '';
+    // 1a, 11 (admin), 2a → can edit all records
+    if (auth === '1a' || auth === ADMIN_ROLE || auth === '2a') return true;
+    // Other users → only if they entered this record
+    var staffInput = String(record['Staff_input'] || record['Staff input'] || '').trim();
+    var currentStaffId = String((currentUser && currentUser['Staff ID']) || '').trim();
+    return staffInput !== '' && currentStaffId !== '' && staffInput === currentStaffId;
+}
+
 // === ACTIVITY APPROVAL SYSTEM ===
 
 // Status icon shown BEFORE name/ID in lists (tick blue = Done, eye red = NY)
@@ -3736,28 +3759,26 @@ function reviewActivity(type, itemId) {
 }
 
 // Generate approve/review button for data browser tables
-// Approve for done: ONLY when NY (and for Farmers: all children Done)
-// Check again: ONLY when already Done
+// Approve for done: ONLY when NY, user has canApprove, and for Farmers: all children Done
+// Check again: ONLY when already Done AND user has canApprove
 function getActivityBtn(type, itemId, activityVal) {
-    if (!userPermissions.canEdit) return '';
+    if (!userPermissions.canApprove) return '';
     var isDone = (activityVal || '').trim() === 'Done';
 
     if (isDone) {
-        // Already approved → show "Check again"
         return '<button class="db-action-btn btn-review" onclick="event.stopPropagation(); reviewActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')" title="Check again"><i class="fas fa-eye"></i></button>';
     }
 
-    // Not approved yet → show "Approve for done" (with conditions for Farmers)
     if (type === 'Farmers') {
         var check = canApproveFarmer(itemId);
-        if (!check.canApprove) return ''; // Hide button if children not all Done
+        if (!check.canApprove) return '';
     }
     return '<button class="db-action-btn btn-approve" onclick="event.stopPropagation(); approveActivity(\'' + type + '\', \'' + escapeHtml(itemId) + '\')" title="Approve for done"><i class="fas fa-check"></i></button>';
 }
 
 // Generate approve/review button for card view (farmer detail)
 function getActivityBtnCard(type, itemId, activityVal) {
-    if (!userPermissions.canEdit) return '';
+    if (!userPermissions.canApprove) return '';
     var isDone = (activityVal || '').trim() === 'Done';
 
     if (isDone) {
@@ -4955,8 +4976,8 @@ function dbRenderFarmers() {
         html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
         html += getActivityBtn('Farmers', f.Farmer_ID, f.Activity);
         html += '<button class="db-action-btn btn-view" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-eye"></i></button>';
-        if (userPermissions.canEdit) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-edit"></i></button>';
-        if (userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-trash"></i></button>';
+        if (canEditRecord(f)) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-edit"></i></button>';
+        if (canEditRecord(f) && userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'Farmers\', \'' + escapeHtml(f.Farmer_ID) + '\')"><i class="fas fa-trash"></i></button>';
         html += '</td></tr>';
     });
     html += '</tbody></table></div>';
@@ -5118,11 +5139,12 @@ function dbRenderChildTable(farmerId, type, idCol) {
             }
             firstCol = false;
         });
-        if (userPermissions.canEdit || userPermissions.canDelete) {
+        var rowCanEdit = canEditRecord(row);
+        if (rowCanEdit || userPermissions.canApprove) {
             html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
             if (type === 'Plots' || type === 'Yearly_Data') html += getActivityBtn(type, itemId, row.Activity);
-            if (userPermissions.canEdit) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-edit"></i></button>';
-            if (userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-trash"></i></button>';
+            if (rowCanEdit) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-edit"></i></button>';
+            if (rowCanEdit && userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'' + type + '\', \'' + escapeHtml(itemId) + '\')"><i class="fas fa-trash"></i></button>';
             html += '</td>';
         }
         html += '</tr>';
