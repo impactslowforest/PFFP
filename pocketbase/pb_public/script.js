@@ -1161,12 +1161,25 @@ function applyFilter() {
             }
         }
 
-        // Pre-filter: use Farmer_Year to get active farmer IDs for selected years
+        // Map manageBy groups to farmer_year Program values
+        function manageByToPrograms(manageByValues) {
+            var programs = [];
+            manageByValues.forEach(function (v) {
+                if (v === 'PFFP/WWF-Việt Nam') programs.push('PFFP');
+                else if (v === 'Slow forest') programs.push('SLOW');
+                // Non-PFFP doesn't map to a farmer_year Program
+            });
+            return programs;
+        }
+
+        // Pre-filter: use Farmer_Year to get active farmer IDs for selected years + program
         let fyFilterFIDs = null;
         if (fY !== 'All') {
+            let fyPrograms = (fMan !== 'All') ? manageByToPrograms(fMan) : null;
             let matchedFY = (rawData.farmer_year || []).filter(fy => {
                 if (!fY.includes(fy['Year'])) return false;
                 if (String(fy['Status'] || '').trim() !== 'Act') return false;
+                if (fyPrograms && fyPrograms.length > 0 && !fyPrograms.includes(fy['Program'])) return false;
                 return true;
             });
             fyFilterFIDs = new Set(matchedFY.map(fy => fy['Farmer_ID']));
