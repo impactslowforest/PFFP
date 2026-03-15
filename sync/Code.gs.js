@@ -90,7 +90,7 @@ function doGet(e) {
   if (action == 'getFarmers')       return createJSONOutput(getSyncData('Farmers', FIELD_MAP_FARMERS));
   if (action == 'getPlots')         return createJSONOutput(getSyncData('Plots', FIELD_MAP_PLOTS));
   if (action == 'getYearlyData')    return createJSONOutput(getSyncData('Yearly_Data', FIELD_MAP_YEARLY));
-  if (action == 'getSupport')       return createJSONOutput(getSyncData('Support', FIELD_MAP_SUPPORT));
+  if (action == 'getSupported')      return createJSONOutput(getSyncData('Support', FIELD_MAP_SUPPORT));
   if (action == 'getSurvivalCheck') return createJSONOutput(getSyncData('Survival_Check', FIELD_MAP_SURVIVAL));
 
   return createJSONOutput({status: 'error', message: 'Invalid GET action'});

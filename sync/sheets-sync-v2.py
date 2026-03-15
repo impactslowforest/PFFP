@@ -21,7 +21,7 @@ SYNC_MAP = [
     ("getFarmers",       "farmers"),
     ("getPlots",         "plots"),
     ("getYearlyData",    "yearly_data"),
-    ("getSupport",       "supported"),
+    ("getSupported",     "supported"),
     ("getSurvivalCheck", "survival_check"),
 ]
 
