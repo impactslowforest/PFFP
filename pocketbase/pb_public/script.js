@@ -413,7 +413,23 @@ function startApp() {
     }
     loadData();
     $(document).on('change', '.check-all', function () { let group = $(this).data('group'); $(`.check-item[data-group="${group}"]`).prop('checked', $(this).is(':checked')); updateDropdownLabel(group); applyFilter(); });
-    $(document).on('change', '.check-item', function () { let group = $(this).data('group'); let total = $(`.check-item[data-group="${group}"]`).length; let checked = $(`.check-item[data-group="${group}"]:checked`).length; $(`.check-all[data-group="${group}"]`).prop('checked', total > 0 && total === checked); updateDropdownLabel(group); applyFilter(); });
+    $(document).on('change', '.check-item', function () {
+        let group = $(this).data('group');
+        // Tree filter: parent toggles children, child updates parent
+        if (group === 'manageBy' && $(this).data('tree-parent')) {
+            var safeId = $(this).attr('id').replace('manageBy_', '');
+            $('input[data-tree-child="' + safeId + '"]').prop('checked', $(this).is(':checked'));
+        }
+        if (group === 'manageBy' && $(this).data('tree-child')) {
+            var parentId = $(this).data('tree-child');
+            var siblings = $('input[data-tree-child="' + parentId + '"]');
+            $('#manageBy_' + parentId).prop('checked', siblings.filter(':checked').length > 0);
+        }
+        let total = $(`.check-item[data-group="${group}"]`).length;
+        let checked = $(`.check-item[data-group="${group}"]:checked`).length;
+        $(`.check-all[data-group="${group}"]`).prop('checked', total > 0 && total === checked);
+        updateDropdownLabel(group); applyFilter();
+    });
     $('#mainTable tbody').on('click', 'tr', function () { var dt = $('#mainTable').DataTable(); var tr = $(this).closest('tr'); if (dt.row(tr).any()) { var r = dt.row(tr).data(); if (r && r[2]) showFarmerDetails(r[2]); } });
     $('#plotsTable tbody').on('click', 'tr', function () { var dt = $('#plotsTable').DataTable(); var tr = $(this).closest('tr'); if (dt.row(tr).any()) { var r = dt.row(tr).data(); if (r && r[1]) showSingleItemDetails('Plots', r[1]); } });
     $('#yearlyTable tbody').on('click', 'tr', function () { var dt = $('#yearlyTable').DataTable(); var tr = $(this).closest('tr'); if (dt.row(tr).any()) { var r = dt.row(tr).data(); if (r && r[3]) showSingleItemDetails('Yearly_Data', r[3]); } });
@@ -1079,12 +1095,8 @@ function initFilters() {
     let eO = Array.from(eS).map(e => ({ value: e, label_vi: getLabel(e, dropMap) || e, label_en: getLabel(e, dropMap) || e })).sort((a, b) => (a.label_vi).localeCompare(b.label_vi));
     populateMultiSelect('ethnicity', eO, true);
 
-    // 6. Manage By (NEW) - Specialized 3-Category Logic
-    let mS = new Set(rawData.farmers.map(d => getManageByGroup(d['Manage by'])));
-    // Sort logic: PFFP/WWF-Việt Nam first (or alphabetic) - let's keep alphabetic or specific order
-    // Specific order: PFFP/WWF-Việt Nam, PFFP/WWF-Việt Nam, Non-PFFP (mixed?), actually just 3 distinct values
-    let mO = Array.from(mS).sort().map(m => ({ value: m, label_vi: m, label_en: m }));
-    populateMultiSelect('manageBy', mO, true);
+    // 6. Manage By - Tree filter: Program → Year (from farmer_year)
+    populateManageByTree();
 
     // 7. Supported By
     let supS = new Set(); rawData.farmers.forEach(f => { if (f['Supported by']) f['Supported by'].toString().split(',').forEach(p => supS.add(p.trim())); });
@@ -1102,6 +1114,111 @@ function initFilters() {
 function populateMultiSelect(g, d, c = false) { const cn = $(`#${g}ListContainer`).empty(); d.forEach(i => { let v = c ? i.value : i; let lv = c ? (i.label_vi || v) : v; let le = c ? (i.label_en || v) : v; cn.append(`<li><div class="form-check"><input class="form-check-input check-item" type="checkbox" value="${v}" data-group="${g}" id="${g}_${v.toString().replace(/[^a-zA-Z0-9]/g, '_')}" checked><label class="form-check-label" for="${g}_${v.toString().replace(/[^a-zA-Z0-9]/g, '_')}" data-vi="${lv}" data-en="${le}">${(currentLang === 'vi') ? lv : le}</label></div></li>`); }); updateDropdownLabel(g); }
 function getSelectedValues(g) { if ($(`.check-all[data-group="${g}"]`).is(':checked')) return 'All'; let s = []; $(`.check-item[data-group="${g}"]:checked`).each(function () { s.push($(this).val()); }); return s; }
 function updateDropdownLabel(g) { $(`.check-item[data-group="${g}"]`).next('label').each(function () { $(this).text(currentLang === 'vi' ? $(this).data('vi') : $(this).data('en')); }); const t = $(`#btnFilter${g.charAt(0).toUpperCase() + g.slice(1)}Text`); if ($(`.check-all[data-group="${g}"]`).is(':checked')) { t.text(translations[currentLang].allOption); } else { let s = getSelectedValues(g); if (s.length === 0) t.text("---"); else if (s.length <= 2) { let ts = []; $(`.check-item[data-group="${g}"]:checked`).each(function () { ts.push($(this).next('label').text()); }); t.text(ts.join(", ")); } else t.text(`${s.length} ${translations[currentLang].selected}`); } }
+
+// --- ManageBy Tree Filter (Program → Year with counts) ---
+function populateManageByTree() {
+    var fyData = rawData.farmer_year || [];
+    var container = $('#manageByListContainer').empty();
+
+    // Build tree: programLabel → { years: { year: count }, total: N }
+    var tree = {};
+    fyData.forEach(function (fy) {
+        var prog = fy['Program'] || '';
+        var label = getManageByGroup(prog);
+        var year = fy['Year'] || '';
+        if (!tree[label]) tree[label] = { programs: new Set(), years: {}, total: 0 };
+        tree[label].programs.add(prog);
+        if (!tree[label].years[year]) tree[label].years[year] = 0;
+        tree[label].years[year]++;
+        tree[label].total++;
+    });
+
+    var labels = Object.keys(tree).sort();
+    labels.forEach(function (label) {
+        var node = tree[label];
+        var safeId = label.replace(/[^a-zA-Z0-9]/g, '_');
+        var progValues = Array.from(node.programs).join(',');
+
+        // Parent group
+        var html = '<li class="tree-group" id="treeGroup_' + safeId + '">';
+        html += '<div class="tree-group-header" onclick="toggleTreeGroup(\'' + safeId + '\')">';
+        html += '<span class="tree-toggle">&#9654;</span>';
+        html += '<div class="form-check mb-0 ms-1"><input class="form-check-input check-item" type="checkbox" value="' + progValues + '" data-group="manageBy" data-tree-parent="1" id="manageBy_' + safeId + '" checked>';
+        html += '<label class="form-check-label" for="manageBy_' + safeId + '" data-vi="' + label + '" data-en="' + label + '">' + label + '</label></div>';
+        html += '<span class="tree-badge">' + node.total + '</span>';
+        html += '</div>';
+
+        // Children (years)
+        html += '<ul class="tree-children list-unstyled">';
+        var years = Object.keys(node.years).sort();
+        years.forEach(function (year) {
+            var yearSafeId = safeId + '_' + year.replace(/[^a-zA-Z0-9]/g, '_');
+            html += '<li class="tree-child">';
+            html += '<div class="form-check mb-0"><input class="form-check-input check-item tree-year-check" type="checkbox" value="' + progValues + '|' + year + '" data-group="manageBy" data-tree-child="' + safeId + '" data-year="' + year + '" id="manageBy_' + yearSafeId + '" checked>';
+            html += '<label class="form-check-label" for="manageBy_' + yearSafeId + '">' + year + '</label></div>';
+            html += '<span class="tree-badge">' + node.years[year] + '</span>';
+            html += '</li>';
+        });
+        html += '</ul></li>';
+        container.append(html);
+    });
+
+    // Open all tree groups by default
+    container.find('.tree-group').addClass('open').find('.tree-toggle').html('&#9660;');
+    updateDropdownLabel('manageBy');
+}
+
+function toggleTreeGroup(safeId) {
+    $('#treeGroup_' + safeId).toggleClass('open');
+    var toggle = $('#treeGroup_' + safeId).find('.tree-toggle').first();
+    toggle.html($('#treeGroup_' + safeId).hasClass('open') ? '&#9660;' : '&#9654;');
+}
+
+function updateManageByAllCheck() {
+    var allItems = $('.check-item[data-group="manageBy"][data-tree-parent]');
+    var allChecked = allItems.length > 0 && allItems.filter(':checked').length === allItems.length;
+    $('.check-all[data-group="manageBy"]').prop('checked', allChecked);
+}
+
+// Get selected Program+Year pairs from tree filter
+function getManageByTreeSelection() {
+    var allCheck = $('.check-all[data-group="manageBy"]').is(':checked');
+    if (allCheck) return { mode: 'all' };
+
+    // Collect checked year-level items
+    var selectedPairs = [];
+    var selectedPrograms = new Set();
+    $('.check-item[data-group="manageBy"][data-tree-child]:checked').each(function () {
+        var val = $(this).val(); // e.g. "PFFP|24Y"
+        var parts = val.split('|');
+        var progs = parts[0].split(',');
+        var year = parts[1];
+        progs.forEach(function (p) {
+            selectedPairs.push({ program: p, year: year });
+            selectedPrograms.add(p);
+        });
+    });
+
+    // Also check parent-only selections (parent checked but no children checked = select all years for that program)
+    $('.check-item[data-group="manageBy"][data-tree-parent]:checked').each(function () {
+        var progs = $(this).val().split(',');
+        var safeId = $(this).attr('id').replace('manageBy_', '');
+        var childChecks = $('input[data-tree-child="' + safeId + '"]');
+        if (childChecks.length === 0) {
+            progs.forEach(function (p) { selectedPrograms.add(p); });
+        }
+    });
+
+    return { mode: 'filtered', pairs: selectedPairs, programs: selectedPrograms };
+}
+
+// Manual sync: reload all data from PocketBase (click logo)
+function manualSync() {
+    var logo = document.getElementById('appLogoImg');
+    if (logo) logo.classList.add('spin-sync');
+    loadData(true);
+    setTimeout(function () { if (logo) logo.classList.remove('spin-sync'); }, 3000);
+}
 
 function toggleMobileFilters() {
     document.body.classList.toggle('mobile-filters-open');
@@ -1142,10 +1259,12 @@ function applyFilter() {
         let fV = getSelectedValues('village');
         let fS = getSelectedValues('status');
         let fE = getSelectedValues('ethnicity');
-        let fMan = getSelectedValues('manageBy'); // NEW
         let fSp = getSelectedValues('supported');
         let fST = getSelectedValues('supportedTypes');
         let fSpec = getSelectedValues('species');
+
+        // ManageBy tree selection (Program × Year cross-filter)
+        let treeSel = getManageByTreeSelection();
 
         // Group restriction: only 3a/4a restricted by Role groups. 11/1a/2a see ALL data.
         let restrictedGroups = [];
@@ -1161,25 +1280,21 @@ function applyFilter() {
             }
         }
 
-        // Map manageBy groups to farmer_year Program values
-        function manageByToPrograms(manageByValues) {
-            var programs = [];
-            manageByValues.forEach(function (v) {
-                if (v === 'PFFP/WWF-Việt Nam') programs.push('PFFP');
-                else if (v === 'Slow forest') programs.push('SLOW');
-                // Non-PFFP doesn't map to a farmer_year Program
-            });
-            return programs;
-        }
-
-        // Pre-filter: use Farmer_Year to get farmer IDs for selected years + program
-        // Note: farmer_year.Status not filtered here - farmers.Status filter handles that separately
+        // Pre-filter: use Farmer_Year to get farmer IDs
+        // Combines Year filter + ManageBy tree filter (Program × Year cross-filter)
         let fyFilterFIDs = null;
-        if (fY !== 'All') {
-            let fyPrograms = (fMan !== 'All') ? manageByToPrograms(fMan) : null;
+        if (fY !== 'All' || treeSel.mode !== 'all') {
             let matchedFY = (rawData.farmer_year || []).filter(fy => {
-                if (!fY.includes(fy['Year'])) return false;
-                if (fyPrograms && fyPrograms.length > 0 && !fyPrograms.includes(fy['Program'])) return false;
+                // Year dropdown filter
+                if (fY !== 'All' && !fY.includes(fy['Year'])) return false;
+                // ManageBy tree filter (exact Program×Year pairs)
+                if (treeSel.mode === 'filtered') {
+                    var prog = fy['Program'] || '';
+                    var year = fy['Year'] || '';
+                    // Check if this fy record matches any selected pair
+                    var matched = treeSel.pairs.some(function (p) { return p.program === prog && p.year === year; });
+                    if (!matched) return false;
+                }
                 return true;
             });
             fyFilterFIDs = new Set(matchedFY.map(fy => fy['Farmer_ID']));
@@ -1212,8 +1327,7 @@ function applyFilter() {
             if (fV !== 'All' && !fV.includes(f['Farmer_Group_Name'])) return false;
             if (fS !== 'All' && !fS.includes(f['Status'])) return false;
             if (fE !== 'All' && !fE.includes(f['Ethnicity'])) return false;
-            let fManVal = getManageByGroup(f['Manage by']);
-            if (fMan !== 'All' && !fMan.includes(fManVal)) return false;
+            // ManageBy (Program) filter is handled via farmer_year pre-filter above
 
             if (fSp !== 'All') { let s = f._supportedByArr; if (!(s.length === 0 && fSp.length === 0) && !s.some(i => fSp.includes(i))) return false; }
             return true;
@@ -1263,7 +1377,7 @@ function updateUI(f, p, y, s, sc) {
     let totalArea = f.reduce((ss, i) => ss + (parseFloat(i['Total_Coffee_Area']) || 0), 0);
     $('#kpi3').text(totalArea.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     // KPI4: Total Registered Area from Farmers
-    let totalRegArea = f.reduce((ss, i) => ss + (parseFloat(i['Total_Area_registered']) || 0), 0);
+    let totalRegArea = f.reduce((ss, i) => ss + (parseFloat(i['Total Area registered']) || 0), 0);
     $('#kpi4').text(totalRegArea.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     // KPI5,6: Calculate from Supported data (tree records = Unit contains "cây", exclude "Cỏ lạc dại")
     var suppData = s || [];

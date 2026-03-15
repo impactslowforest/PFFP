@@ -92,9 +92,9 @@
     <div id="dashboardSection">
         <div class="navbar-custom">
             <div class="header-content">
-                <div class="header-logo-wrap">
+                <div class="header-logo-wrap" onclick="manualSync()" title="Click to sync data">
                     <img src="https://raw.githubusercontent.com/impactslowforest/Logo/refs/heads/main/logo.png"
-                        alt="Logo" class="app-logo">
+                        alt="Logo" class="app-logo" id="appLogoImg">
                 </div>
                 <h1 class="app-title mb-0">
                     <span class="title-vi">Sản xuất cà phê sinh thái và cải thiện rừng tự nhiên</span>
@@ -380,7 +380,7 @@
                                 type="button" data-bs-toggle="dropdown" id="btnFilterManageBy"><span
                                     class="text-truncate" id="btnFilterManageByText" data-i18n="allOption">Tất
                                     cả</span></button>
-                            <ul class="dropdown-menu dropdown-menu-custom p-2">
+                            <ul class="dropdown-menu dropdown-menu-custom dropdown-tree-filter p-2">
                                 <li>
                                     <div class="form-check"><input class="form-check-input check-all" type="checkbox"
                                             data-group="manageBy" id="manageBy_all" checked><label

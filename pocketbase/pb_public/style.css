@@ -348,6 +348,7 @@ body {
 
 .header-logo-wrap {
     flex-shrink: 0;
+    cursor: pointer;
 }
 
 .app-logo {
@@ -358,6 +359,16 @@ body {
     background-color: white;
     padding: 2px;
     border-radius: 4px;
+    transition: transform 0.3s;
+}
+
+.app-logo.spin-sync {
+    animation: spin-logo 1s linear infinite;
+}
+
+@keyframes spin-logo {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 .app-title {
@@ -753,6 +764,17 @@ body.tab-charts .search-bar-wrapper {
         margin-bottom: 1px;
     }
 }
+
+/* Tree filter (ManageBy Program→Year) */
+.dropdown-tree-filter { min-width: 280px; }
+.tree-group { margin-bottom: 2px; }
+.tree-group-header { display: flex; align-items: center; cursor: pointer; padding: 2px 0; }
+.tree-group-header .tree-toggle { width: 16px; font-size: 0.7rem; color: #888; flex-shrink: 0; }
+.tree-group-header .tree-badge { background: #e9ecef; color: #555; font-size: 0.7rem; padding: 1px 6px; border-radius: 8px; margin-left: auto; }
+.tree-children { padding-left: 22px; display: none; }
+.tree-group.open > .tree-children { display: block; }
+.tree-child { display: flex; align-items: center; padding: 1px 0; }
+.tree-child .tree-badge { background: #e9ecef; color: #555; font-size: 0.65rem; padding: 0 5px; border-radius: 6px; margin-left: auto; }
 
 /* 7. TABS */
 .nav-tabs .nav-link {
