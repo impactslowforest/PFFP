@@ -1172,13 +1172,13 @@ function applyFilter() {
             return programs;
         }
 
-        // Pre-filter: use Farmer_Year to get active farmer IDs for selected years + program
+        // Pre-filter: use Farmer_Year to get farmer IDs for selected years + program
+        // Note: farmer_year.Status not filtered here - farmers.Status filter handles that separately
         let fyFilterFIDs = null;
         if (fY !== 'All') {
             let fyPrograms = (fMan !== 'All') ? manageByToPrograms(fMan) : null;
             let matchedFY = (rawData.farmer_year || []).filter(fy => {
                 if (!fY.includes(fy['Year'])) return false;
-                if (String(fy['Status'] || '').trim() !== 'Act') return false;
                 if (fyPrograms && fyPrograms.length > 0 && !fyPrograms.includes(fy['Program'])) return false;
                 return true;
             });
@@ -1222,7 +1222,7 @@ function applyFilter() {
         // yearEval filter: keep only farmers that have farmer_year records for eval years
         if (fYE !== 'All') {
             var fyEvalIDs = new Set((rawData.farmer_year || []).filter(function (fy) {
-                return fYE.includes(fy['Year']) && String(fy['Status'] || '').trim() === 'Act';
+                return fYE.includes(fy['Year']);
             }).map(function (fy) { return fy['Farmer_ID']; }));
             filtF = filtF.filter(function (f) { return fyEvalIDs.has(f['Farmer_ID']); });
         }
