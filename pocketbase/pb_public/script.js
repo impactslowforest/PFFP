@@ -1062,22 +1062,23 @@ function initFilters() {
     if (fyHasData) {
         uY = [...new Set((rawData.farmer_year || []).map(d => d['Year']))].filter(Boolean).sort();
     } else {
-        // Fallback: use Year from yearly_data or Participation_Year from farmers
         let yFromYD = (rawData.yearly || []).map(d => d['Year']).filter(Boolean);
         let yFromF = rawData.farmers.map(d => d['Participation Year'] || d['Participation_Year']).filter(Boolean);
         uY = [...new Set([...yFromYD, ...yFromF])].sort();
     }
-    let yO = uY.map(y => { let lK = String(y).trim(); let m = dropMap[lK]; if (m && m.condition === 'Participation Year') return { value: y, label_vi: m.vi, label_en: m.en }; return { value: y, label_vi: y, label_en: y }; });
+    // Convert year codes to readable labels: "24Y" → "2024", "25Y" → "2025"
+    var yearCodeToLabel = function(y) { var m = String(y).match(/^(\d{2})Y$/); return m ? '20' + m[1] : y; };
+    let yO = uY.map(y => ({ value: y, label_vi: yearCodeToLabel(y), label_en: yearCodeToLabel(y) }));
     populateMultiSelect('year', yO, true);
 
     // 2. Year Support - from Supported table (Year field)
     let uYS = [...new Set((rawData.supported || []).map(d => d['Year']))].filter(Boolean).sort();
-    let ysO = uYS.map(y => { let lK = String(y).trim(); let m = dropMap[lK]; if (m && m.condition === 'Participation Year') return { value: y, label_vi: m.vi, label_en: m.en }; return { value: y, label_vi: y, label_en: y }; });
+    let ysO = uYS.map(y => ({ value: y, label_vi: yearCodeToLabel(y), label_en: yearCodeToLabel(y) }));
     populateMultiSelect('yearSupport', ysO, true);
 
     // 2b. Year Eval - from Yearly_Data table (Year field, e.g. 24Y, 25Y)
     let uYE = [...new Set((rawData.yearly || []).map(d => d['Year']))].filter(Boolean).sort();
-    let yeO = uYE.map(y => { let lK = String(y).trim(); let m = dropMap[lK]; if (m && m.condition === 'Participation Year') return { value: y, label_vi: m.vi, label_en: m.en }; return { value: y, label_vi: y, label_en: y }; });
+    let yeO = uYE.map(y => ({ value: y, label_vi: yearCodeToLabel(y), label_en: yearCodeToLabel(y) }));
     populateMultiSelect('yearEval', yeO, true);
 
     // 3. Village (Now Farmer Group) - only 3a/4a restricted by Role. 11/1a/2a see all groups.
@@ -1136,43 +1137,46 @@ function populateManageByTree() {
     var fyData = rawData.farmer_year || [];
     var container = $('#manageByListContainer').empty();
 
-    // Build tree: programLabel → { years: { year: count }, total: N }
+    // Build tree: programLabel → { years: { year: Set<Farmer_ID> }, allFarmers: Set<Farmer_ID> }
     var tree = {};
     fyData.forEach(function (fy) {
         var prog = fy['Program'] || '';
         var label = getManageByGroup(prog);
         var year = fy['Year'] || '';
-        if (!tree[label]) tree[label] = { programs: new Set(), years: {}, total: 0 };
+        var fid = fy['Farmer_ID'] || '';
+        if (!tree[label]) tree[label] = { programs: new Set(), years: {}, allFarmers: new Set() };
         tree[label].programs.add(prog);
-        if (!tree[label].years[year]) tree[label].years[year] = 0;
-        tree[label].years[year]++;
-        tree[label].total++;
+        if (!tree[label].years[year]) tree[label].years[year] = new Set();
+        tree[label].years[year].add(fid);
+        tree[label].allFarmers.add(fid);
     });
 
+    // yearCodeToLabel for tree display
+    var ycl = function(y) { var m = String(y).match(/^(\d{2})Y$/); return m ? '20' + m[1] : y; };
     var labels = Object.keys(tree).sort();
     labels.forEach(function (label) {
         var node = tree[label];
         var safeId = label.replace(/[^a-zA-Z0-9]/g, '_');
         var progValues = Array.from(node.programs).join(',');
 
-        // Parent group
+        // Parent group - count unique farmers
         var html = '<li class="tree-group" id="treeGroup_' + safeId + '">';
         html += '<div class="tree-group-header" onclick="toggleTreeGroup(\'' + safeId + '\')">';
         html += '<span class="tree-toggle">&#9654;</span>';
         html += '<div class="form-check mb-0 ms-1"><input class="form-check-input check-item" type="checkbox" value="' + progValues + '" data-group="manageBy" data-tree-parent="1" id="manageBy_' + safeId + '" checked>';
         html += '<label class="form-check-label" for="manageBy_' + safeId + '" data-vi="' + label + '" data-en="' + label + '">' + label + '</label></div>';
-        html += '<span class="tree-badge">' + node.total + '</span>';
+        html += '<span class="tree-badge">' + node.allFarmers.size + '</span>';
         html += '</div>';
 
-        // Children (years)
+        // Children (years) - count unique farmers per year
         html += '<ul class="tree-children list-unstyled">';
         var years = Object.keys(node.years).sort();
         years.forEach(function (year) {
             var yearSafeId = safeId + '_' + year.replace(/[^a-zA-Z0-9]/g, '_');
             html += '<li class="tree-child">';
             html += '<div class="form-check mb-0"><input class="form-check-input check-item tree-year-check" type="checkbox" value="' + progValues + '|' + year + '" data-group="manageBy" data-tree-child="' + safeId + '" data-year="' + year + '" id="manageBy_' + yearSafeId + '" checked>';
-            html += '<label class="form-check-label" for="manageBy_' + yearSafeId + '">' + year + '</label></div>';
-            html += '<span class="tree-badge">' + node.years[year] + '</span>';
+            html += '<label class="form-check-label" for="manageBy_' + yearSafeId + '">' + ycl(year) + '</label></div>';
+            html += '<span class="tree-badge">' + node.years[year].size + '</span>';
             html += '</li>';
         });
         html += '</ul></li>';
