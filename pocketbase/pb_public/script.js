@@ -1056,8 +1056,17 @@ function toggleLanguage() {
 function initFilters() {
     if (!rawData.farmers) return;
 
-    // 1. Year - from Farmer_Year table (Year field: 24Y, 25Y)
-    let uY = [...new Set((rawData.farmer_year || []).map(d => d['Year']))].filter(Boolean).sort();
+    // 1. Year - from Farmer_Year table, fallback to Yearly_Data Year
+    var fyHasData = (rawData.farmer_year || []).length > 0;
+    let uY;
+    if (fyHasData) {
+        uY = [...new Set((rawData.farmer_year || []).map(d => d['Year']))].filter(Boolean).sort();
+    } else {
+        // Fallback: use Year from yearly_data or Participation_Year from farmers
+        let yFromYD = (rawData.yearly || []).map(d => d['Year']).filter(Boolean);
+        let yFromF = rawData.farmers.map(d => d['Participation Year'] || d['Participation_Year']).filter(Boolean);
+        uY = [...new Set([...yFromYD, ...yFromF])].sort();
+    }
     let yO = uY.map(y => { let lK = String(y).trim(); let m = dropMap[lK]; if (m && m.condition === 'Participation Year') return { value: y, label_vi: m.vi, label_en: m.en }; return { value: y, label_vi: y, label_en: y }; });
     populateMultiSelect('year', yO, true);
 
@@ -1095,8 +1104,15 @@ function initFilters() {
     let eO = Array.from(eS).map(e => ({ value: e, label_vi: getLabel(e, dropMap) || e, label_en: getLabel(e, dropMap) || e })).sort((a, b) => (a.label_vi).localeCompare(b.label_vi));
     populateMultiSelect('ethnicity', eO, true);
 
-    // 6. Manage By - Tree filter: Program → Year (from farmer_year)
-    populateManageByTree();
+    // 6. Manage By - Tree filter from farmer_year, fallback to Farmers.Manage_by
+    if (fyHasData) {
+        populateManageByTree();
+    } else {
+        // Fallback: flat list from Farmers.Manage_by using getManageByGroup
+        let mS = new Set(rawData.farmers.map(d => getManageByGroup(d['Manage by'])));
+        let mO = Array.from(mS).sort().map(m => ({ value: m, label_vi: m, label_en: m }));
+        populateMultiSelect('manageBy', mO, true);
+    }
 
     // 7. Supported By
     let supS = new Set(); rawData.farmers.forEach(f => { if (f['Supported by']) f['Supported by'].toString().split(',').forEach(p => supS.add(p.trim())); });
@@ -1265,6 +1281,7 @@ function applyFilter() {
 
         // ManageBy tree selection (Program × Year cross-filter)
         let treeSel = getManageByTreeSelection();
+        var _fyHasData = (rawData.farmer_year || []).length > 0;
 
         // Group restriction: only 3a/4a restricted by Role groups. 11/1a/2a see ALL data.
         let restrictedGroups = [];
@@ -1280,25 +1297,26 @@ function applyFilter() {
             }
         }
 
-        // Pre-filter: use Farmer_Year to get farmer IDs
-        // Combines Year filter + ManageBy tree filter (Program × Year cross-filter)
+        // Pre-filter: farmer IDs via Farmer_Year (or fallback to Participation_Year)
         let fyFilterFIDs = null;
-        if (fY !== 'All' || treeSel.mode !== 'all') {
-            let matchedFY = (rawData.farmer_year || []).filter(fy => {
-                // Year dropdown filter
-                if (fY !== 'All' && !fY.includes(fy['Year'])) return false;
-                // ManageBy tree filter (exact Program×Year pairs)
-                if (treeSel.mode === 'filtered') {
-                    var prog = fy['Program'] || '';
-                    var year = fy['Year'] || '';
-                    // Check if this fy record matches any selected pair
-                    var matched = treeSel.pairs.some(function (p) { return p.program === prog && p.year === year; });
-                    if (!matched) return false;
-                }
-                return true;
-            });
-            fyFilterFIDs = new Set(matchedFY.map(fy => fy['Farmer_ID']));
+        if (_fyHasData) {
+            // Use farmer_year table for cross-filter Year × Program
+            if (fY !== 'All' || treeSel.mode !== 'all') {
+                let matchedFY = (rawData.farmer_year || []).filter(fy => {
+                    if (fY !== 'All' && !fY.includes(fy['Year'])) return false;
+                    if (treeSel.mode === 'filtered') {
+                        var prog = fy['Program'] || '';
+                        var year = fy['Year'] || '';
+                        var matched = treeSel.pairs.some(function (p) { return p.program === prog && p.year === year; });
+                        if (!matched) return false;
+                    }
+                    return true;
+                });
+                fyFilterFIDs = new Set(matchedFY.map(fy => fy['Farmer_ID']));
+            }
         }
+        // Fallback ManageBy when farmer_year empty: use getManageByGroup on Farmers
+        let fManFallback = (!_fyHasData && treeSel.mode !== 'all') ? getSelectedValues('manageBy') : null;
 
         // Pre-filter: if yearSupport or supportedTypes are set, find matching farmer IDs from Supported table
         let suppFilterFIDs = null;
@@ -1320,14 +1338,24 @@ function applyFilter() {
         let filtF = (rawData.farmers || []).filter(f => {
             if (restrictedGroups.length > 0) { let fGroup = String(f['Farmer_Group_Name'] || '').trim(); if (!restrictedGroups.includes(fGroup)) return false; }
 
-            // Year filter via Farmer_Year table
+            // Year filter via Farmer_Year table (or skip if farmer_year empty)
             if (fyFilterFIDs && !fyFilterFIDs.has(f.Farmer_ID)) return false;
+            // Fallback year filter: use Participation_Year when farmer_year empty
+            if (!_fyHasData && fY !== 'All') {
+                var fPY = String(f['Participation Year'] || f['Participation_Year'] || '').trim();
+                var pyParts = fPY.split(',').map(function (s) { return s.trim(); });
+                if (!pyParts.some(function (p) { return fY.includes(p); })) return false;
+            }
             // Year Support & Supported Types filter via Supported table
             if (suppFilterFIDs && !suppFilterFIDs.has(f.Farmer_ID)) return false;
             if (fV !== 'All' && !fV.includes(f['Farmer_Group_Name'])) return false;
             if (fS !== 'All' && !fS.includes(f['Status'])) return false;
             if (fE !== 'All' && !fE.includes(f['Ethnicity'])) return false;
-            // ManageBy (Program) filter is handled via farmer_year pre-filter above
+            // ManageBy fallback: use getManageByGroup when farmer_year empty
+            if (fManFallback && fManFallback !== 'All') {
+                let fManVal = getManageByGroup(f['Manage by']);
+                if (!fManFallback.includes(fManVal)) return false;
+            }
 
             if (fSp !== 'All') { let s = f._supportedByArr; if (!(s.length === 0 && fSp.length === 0) && !s.some(i => fSp.includes(i))) return false; }
             return true;

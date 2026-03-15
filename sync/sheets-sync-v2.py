@@ -11,7 +11,7 @@ from datetime import datetime
 
 # === CONFIG ===
 # IMPORTANT: Replace with your deployed Apps Script Web App URL
-SHEETS_API = "https://script.google.com/macros/s/AKfycbzaxHXkb_93oYKeTNYScj_wmHW8WpFgeqiX8b0UABbxgZEiAuals-k2Ov1amybdqcOivw/exec"
+SHEETS_API = "https://script.google.com/macros/s/AKfycbzyKR7EMAZt7TJMCSlXQ1g0zLBbnunZA6UQnc2BOTmK9hRFs_J-kxn0tUjee8IPi22bMA/exec"
 PB_API = "http://127.0.0.1:8095/api/collections"
 LOG_FILE = "/var/log/pffp-sync.log"
 LOCK_FILE = "/tmp/pffp-sync.lock"

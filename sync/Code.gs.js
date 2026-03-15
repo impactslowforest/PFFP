@@ -73,6 +73,9 @@ var FIELD_MAP_SURVIVAL = {
 // Farmer_Year: khong can map (ten field giong nhau)
 var FIELD_MAP_FARMER_YEAR = {};
 
+// Training_Participation: khong can map (ten field giong nhau)
+var FIELD_MAP_TRAINING_PARTICIPATION = {};
+
 // Cac cot section separator can bo qua (I, II, III, IV)
 var SKIP_COLUMNS = ['I', 'II', 'III', 'IV', 'TT'];
 
@@ -96,8 +99,9 @@ function doGet(e) {
   if (action == 'getSupported')      return createJSONOutput(getSyncData('Support', FIELD_MAP_SUPPORT));
   if (action == 'getSurvivalCheck') return createJSONOutput(getSyncData('Survival_Check', FIELD_MAP_SURVIVAL));
   if (action == 'getFarmerYear')    return createJSONOutput(getSyncData('Farmer_Year', FIELD_MAP_FARMER_YEAR));
+  if (action == 'getTrainingParticipation') return createJSONOutput(getSyncData('Training_Participation', FIELD_MAP_TRAINING_PARTICIPATION));
 
-  return createJSONOutput({status: 'error', message: 'Invalid GET action'});
+  return createJSONOutput({status: 'error', message: 'Invalid action. Available: getFarmers, getPlots, getYearlyData, getSupported, getSurvivalCheck, getFarmerYear, getTrainingParticipation, getAllData'});
 }
 
 // Xu ly yeu cau POST (Gui du lieu len: Luu, Xoa, Upload, Reset Pass)
@@ -424,6 +428,8 @@ function getIdColumnName(sheetName) {
     case 'User': return 'Staff ID';
     case 'Support': return 'Support_ID';
     case 'Survival_Check': return 'Check_ID';
+    case 'Farmer_Year': return 'Enrollment_ID';
+    case 'Training_Participation': return 'Participation_ID';
     default: return 'ID';
   }
 }
