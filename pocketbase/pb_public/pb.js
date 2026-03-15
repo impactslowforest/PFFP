@@ -16,7 +16,9 @@ var PB_TABLE_MAP = {
     'drop_values': 'drop_values',
     'species': 'species',
     'training_list': 'training_list',
-    'op6_activities_list': 'op6_activities_list'
+    'op6_activities_list': 'op6_activities_list',
+    'farmer_year': 'farmer_year',
+    'survival_check': 'survival_check'
 };
 
 // ---- Field name mapping: Supabase column → PocketBase field ----

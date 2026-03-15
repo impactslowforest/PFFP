@@ -23,6 +23,7 @@ SYNC_MAP = [
     ("getYearlyData",    "yearly_data"),
     ("getSupported",     "supported"),
     ("getSurvivalCheck", "survival_check"),
+    ("getFarmerYear",    "farmer_year"),
 ]
 
 # ID fields for each PB collection
@@ -32,6 +33,7 @@ ID_FIELDS = {
     "yearly_data":    "Record_Id",
     "supported":      "Support_ID",
     "survival_check": "Check_ID",
+    "farmer_year":    "Enrollment_ID",
 }
 
 # Number fields per collection (PB rejects strings for number fields)
@@ -55,6 +57,7 @@ NUMBER_FIELDS = {
     ],
     "supported": ["Quantity"],
     "survival_check": ["Trees_Alive", "Survival_Rate"],
+    "farmer_year": [],
 }
 
 
