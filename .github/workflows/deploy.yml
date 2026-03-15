@@ -32,17 +32,74 @@ jobs:
           target: "/opt/pffp/"
           strip_components: 1
 
-      - name: Restart PocketBase to reload hooks
+      - name: Deploy migrations to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "pocketbase/pb_migrations/*"
+          target: "/opt/pffp/"
+          strip_components: 1
+
+      - name: Deploy sync script to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "sync/sheets-sync-v2.py"
+          target: "/opt/pffp/"
+          strip_components: 1
+
+      - name: Restart PocketBase and setup sync timer
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            # Restart PocketBase to pick up hook changes
+            # Restart PocketBase to pick up hook + migration changes
             systemctl restart pffp
 
-            # Verify
+            # Verify PocketBase
             sleep 3
             systemctl is-active pffp && echo "✓ PFFP service is running" || echo "✗ PFFP service failed!"
             curl -sf http://127.0.0.1:8095/api/health && echo "✓ PFFP API is healthy!" || echo "✗ PFFP health check failed!"
+
+            # Setup sync timer (idempotent - safe to re-run)
+            cat > /etc/systemd/system/pffp-sync.service << 'EOSVC'
+            [Unit]
+            Description=PFFP Google Sheets Sync
+            After=network.target pffp.service
+
+            [Service]
+            Type=oneshot
+            ExecStart=/usr/bin/python3 /opt/pffp/sheets-sync-v2.py
+            WorkingDirectory=/opt/pffp
+            StandardOutput=journal
+            StandardError=journal
+            EOSVC
+
+            cat > /etc/systemd/system/pffp-sync.timer << 'EOTMR'
+            [Unit]
+            Description=Run PFFP Sheets Sync every 5 minutes
+
+            [Timer]
+            OnBootSec=2min
+            OnUnitActiveSec=5min
+            AccuracySec=30s
+
+            [Install]
+            WantedBy=timers.target
+            EOTMR
+
+            systemctl daemon-reload
+            systemctl enable pffp-sync.timer
+            systemctl start pffp-sync.timer
+
+            # Create log file if not exists
+            touch /var/log/pffp-sync.log
+
+            echo "✓ Sync timer configured (every 5 min)"
+            systemctl is-active pffp-sync.timer && echo "✓ Timer is active" || echo "✗ Timer failed"
