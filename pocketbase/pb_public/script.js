@@ -110,7 +110,7 @@ const translations = {
         lblUsername: "Chọn nhân viên:", lblPassword: "Mật khẩu:", btnLogin: "ĐĂNG NHẬP",
 
         loginErrorTitle: "Lỗi đăng nhập", loginErrorMsg: "Thông tin đăng nhập không đúng hoặc tài khoản chưa kích hoạt (Status != Act).",
-        kpi1: "Tổng số hộ", kpiFemale: "Nữ / Tổng", kpi2: "Tổng số lô", kpi3: "Tổng diện tích (ha)", kpi4: "Tổng DT ĐK (ha)", kpi5: "Cây bóng đã trồng", kpi6: "Tổng số loài", kpi7: "Tổng nhóm hộ", kpi8: "Tỷ lệ hoàn thành", kpi9: "Tỷ lệ sống",
+        kpi1: "Tổng số hộ", kpiFemale: "Nữ / Tổng", kpi2: "Tổng số lô", kpi3: "Tổng diện tích (ha)", kpi4: "Tổng DT ĐK (ha)", kpi5: "Số cây che bóng đã trồng", kpi6: "Tổng số loài", kpi7: "Tổng nhóm hộ", kpi8: "Tỷ lệ hoàn thành", kpi9: "Tỷ lệ sống",
         kpi10: "Sản lượng đại trà (T)", kpi11: "Sản lượng chất lượng cao (T)",
         searchPlaceholder: "Tìm kiếm nông hộ, lô, mã ID...",
 
@@ -209,7 +209,7 @@ const translations = {
         lblSelectOrg: "Please select organization:", optSelectOrgFirst: "-- Select Organization First --",
         lblUsername: "Select Staff:", lblPassword: "Password:", btnLogin: "LOGIN",
         loginErrorTitle: "Login Error", loginErrorMsg: "Incorrect password or account inactive.",
-        kpi1: "Total Farmers", kpiFemale: "Female / Total", kpi2: "Total Plots", kpi3: "Total Area (ha)", kpi4: "Total Reg. Area (ha)", kpi5: "Planted Shade Trees", kpi6: "Total Species", kpi7: "Total Farmer Groups", kpi8: "Completion Rate", kpi9: "Survival Rate",
+        kpi1: "Total Farmers", kpiFemale: "Female / Total", kpi2: "Total Plots", kpi3: "Total Area (ha)", kpi4: "Total Reg. Area (ha)", kpi5: "Shade Trees Planted", kpi6: "Total Species", kpi7: "Total Farmer Groups", kpi8: "Completion Rate", kpi9: "Survival Rate",
         kpi10: "Cherry Vol (T)", kpi11: "HQ Vol (T)",
         searchPlaceholder: "Search farmers, plots, ID...",
 
@@ -1481,7 +1481,7 @@ function updateUI(f, p, y, s, sc) {
     // KPI5,6: Calculate from Supported data (tree records = Unit contains "cây", exclude "Cỏ lạc dại")
     var suppData = s || [];
     var treeRecs = suppData.filter(x => (x.Unit || '').toLowerCase().indexOf('cây') >= 0 || (x.Unit || '').toLowerCase().indexOf('tree') >= 0);
-    var treePlanted = treeRecs.filter(x => (x.Species_Name || '') !== 'Cỏ lạc dại');
+    var treePlanted = treeRecs.filter(x => { var sn = (x.Species_Name || '').trim(); return sn !== '' && sn !== 'Cỏ lạc dại'; });
     var plantedFromSupp = treePlanted.reduce((ss, x) => ss + (parseFloat(x.Quantity) || 0), 0);
     $('#kpi5').text(plantedFromSupp.toLocaleString());
     // KPI6: Species count from Supported tree records
@@ -6448,7 +6448,7 @@ function showKpiDrilldown(kpiType) {
         totalPlots:     { vi: 'Tổng số lô', en: 'Total Plots' },
         totalArea:      { vi: 'Tổng diện tích', en: 'Total Area' },
         shadeExisting:  { vi: 'Cây che bóng có sẵn', en: 'Existing Shade Trees' },
-        shadePlanted:   { vi: 'Cây che bóng đã trồng', en: 'Shade Trees Planted' },
+        shadePlanted:   { vi: 'Số cây che bóng đã trồng', en: 'Shade Trees Planted' },
         totalSpecies:   { vi: 'Loài cây che bóng', en: 'Shade Tree Species' },
         totalGroups:    { vi: 'Nhóm hộ', en: 'Farmer Groups' },
         completionRate: { vi: 'Tỷ lệ hoàn thành', en: 'Completion Rate' },
@@ -6752,11 +6752,53 @@ function showKpiDrilldown(kpiType) {
         return;
     }
 
+    // --- shadePlanted: Species → Group → Farmer ---
+    if (kpiType === 'shadePlanted') {
+        var spSupp = rawData.supported || [];
+        var spFids = new Set(farmers.map(function (ff) { return ff.Farmer_ID; }));
+        var spStats = {};
+        spSupp.forEach(function (s) {
+            var sn = (s.Species_Name || '').trim();
+            if (!spFids.has(s.Farmer_ID) || !sn || sn === 'Cỏ lạc dại') return;
+            if (!spStats[sn]) spStats[sn] = { qty: 0, farmers: new Set() };
+            spStats[sn].qty += parseFloat(s.Quantity) || 0;
+            spStats[sn].farmers.add(s.Farmer_ID);
+        });
+        var spKeys = Object.keys(spStats).sort(function (a, b) { return spStats[b].qty - spStats[a].qty; });
+        var maxQty = spKeys.length > 0 ? spStats[spKeys[0]].qty : 1;
+        var totalQty = spKeys.reduce(function (s, k) { return s + spStats[k].qty; }, 0);
+        var html = '<div class="table-responsive"><table class="table table-sm table-striped table-hover" style="font-size:0.82rem;">';
+        html += '<thead class="table-custom-header"><tr>';
+        html += '<th>#</th><th>' + (isVi ? 'Loài cây' : 'Species') + '</th>';
+        html += '<th>' + (isVi ? 'Số cây' : 'Trees') + '</th>';
+        html += '<th>' + (isVi ? 'Số hộ' : 'Farmers') + '</th>';
+        html += '<th style="min-width:100px">' + (isVi ? 'Tỷ lệ' : 'Share') + '</th>';
+        html += '</tr></thead><tbody>';
+        spKeys.forEach(function (sn, i) {
+            var st = spStats[sn];
+            var pct = totalQty > 0 ? (st.qty / totalQty * 100).toFixed(1) : 0;
+            var barW = maxQty > 0 ? (st.qty / maxQty * 100).toFixed(1) : 0;
+            html += '<tr class="kpi-drill-row" onclick="kpiDrillPlantedSpeciesGroups(' + JSON.stringify(sn) + ')">';
+            html += '<td>' + (i + 1) + '</td>';
+            html += '<td><strong>' + escapeHtml(sn) + '</strong></td>';
+            html += '<td>' + st.qty.toLocaleString() + '</td>';
+            html += '<td>' + st.farmers.size + '</td>';
+            html += '<td><div class="kpi-drill-bar"><div class="kpi-drill-bar-fill" style="width:' + barW + '%"></div></div><small>' + pct + '%</small></td>';
+            html += '</tr>';
+        });
+        if (spKeys.length === 0) html += '<tr><td colspan="5" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
+        html += '</tbody></table></div>';
+        $('#farmerDetailTitle').text(title + ' — ' + spKeys.length + ' ' + (isVi ? 'loài' : 'species') + ' / ' + totalQty.toLocaleString() + ' ' + (isVi ? 'cây' : 'trees'));
+        $('#detailContent').html(html);
+        $('#modalActions').html('');
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('farmerDetailModal')).show();
+        return;
+    }
+
     // --- Hierarchical: Year → Group → Farmer ---
     var rows = [];
     var valueLabel;
     if (kpiType === 'shadeExisting') valueLabel = isVi ? 'SL cây CB' : 'Shade Trees';
-    else if (kpiType === 'shadePlanted') valueLabel = isVi ? 'SL trồng' : 'Planted';
     else if (kpiType === 'survivalRate') valueLabel = isVi ? 'Tỷ lệ sống' : 'Survival';
     else if (kpiType === 'cherryVol' || kpiType === 'hqVol') valueLabel = isVi ? 'SL (T)' : 'Vol (T)';
     else if (kpiType === 'totalPlots') valueLabel = isVi ? 'DT (ha)' : 'Area (ha)';
@@ -6781,21 +6823,6 @@ function showKpiDrilldown(kpiType) {
             var f = farmerMap[p.Farmer_ID] || {};
             rows.push({ farmerId: p.Farmer_ID, group: f.Farmer_Group_Name || '', name: f.Full_Name || '', value: p.Num_Shade_Trees_Before || '0', partYear: f['Participation Year'] || '' });
         });
-    } else if (kpiType === 'shadePlanted') {
-        // Use Supported data directly (tree records)
-        var suppAll2 = rawData.supported || [];
-        var fids2 = new Set(farmers.map(function (ff) { return ff.Farmer_ID; }));
-        var treeRecs2 = suppAll2.filter(function (s) { return fids2.has(s.Farmer_ID) && (s.Unit || '').toLowerCase().indexOf('tree') >= 0; });
-        var farmerPlanted = {};
-        treeRecs2.forEach(function (s) {
-            var fid = s.Farmer_ID;
-            if (!farmerPlanted[fid]) farmerPlanted[fid] = 0;
-            farmerPlanted[fid] += parseFloat(s.Quantity) || 0;
-        });
-        for (var fid2 in farmerPlanted) {
-            var ff2 = farmerMap[fid2] || {};
-            rows.push({ farmerId: fid2, group: ff2.Farmer_Group_Name || '', name: ff2.Full_Name || '', value: farmerPlanted[fid2].toLocaleString(), partYear: ff2['Participation Year'] || '' });
-        }
     } else if (kpiType === 'cherryVol') {
         yearly.filter(function (y) { return parseFloat(y.Annual_Volume_Cherry) > 0; }).forEach(function (y) {
             var f = farmerMap[y.Farmer_ID] || {};
@@ -6982,6 +7009,98 @@ function kpiDrillSpeciesGroupFarmers(speciesCode, groupCode) {
     });
     if (fKeys.length === 0) html += '<tr><td colspan="4" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
     html += '</tbody></table></div>';
+    kpiDrillPush(title, html);
+}
+
+// Shade Trees Planted KPI → Species → Groups for a species
+function kpiDrillPlantedSpeciesGroups(speciesName) {
+    var isVi = currentLang === 'vi';
+    var farmers = filteredData.farmers || [];
+    var farmerMap = {};
+    (rawData.farmers || []).forEach(function (f) { farmerMap[f.Farmer_ID] = f; });
+    var fids = new Set(farmers.map(function (f) { return f.Farmer_ID; }));
+    var suppAll = rawData.supported || [];
+    var groupStats = {};
+    suppAll.forEach(function (s) {
+        var sn = (s.Species_Name || '').trim();
+        if (!fids.has(s.Farmer_ID) || !sn || sn === 'Cỏ lạc dại' || sn !== speciesName) return;
+        var ff = farmerMap[s.Farmer_ID] || {};
+        var gc = ff.Farmer_Group_Name || 'N/A';
+        if (!groupStats[gc]) groupStats[gc] = { qty: 0, farmers: new Set() };
+        groupStats[gc].qty += parseFloat(s.Quantity) || 0;
+        groupStats[gc].farmers.add(s.Farmer_ID);
+    });
+    var gKeys = Object.keys(groupStats).sort(function (a, b) { return groupStats[b].qty - groupStats[a].qty; });
+    var maxQty = gKeys.length > 0 ? groupStats[gKeys[0]].qty : 1;
+    var totalQty = gKeys.reduce(function (s, k) { return s + groupStats[k].qty; }, 0);
+    var title = speciesName + ' — ' + (isVi ? 'Theo nhóm' : 'By Group') + ' (' + Math.round(totalQty).toLocaleString() + ' ' + (isVi ? 'cây' : 'trees') + ')';
+    var html = '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
+    html += '<thead class="table-custom-header"><tr>';
+    html += '<th>#</th>';
+    html += '<th>' + (isVi ? 'Nhóm' : 'Group') + '</th>';
+    html += '<th>' + (isVi ? 'Số hộ' : 'Farmers') + '</th>';
+    html += '<th>' + (isVi ? 'Số cây' : 'Trees') + '</th>';
+    html += '<th style="min-width:80px;">%</th>';
+    html += '</tr></thead><tbody>';
+    gKeys.forEach(function (gc, i) {
+        var d = groupStats[gc];
+        var gLabel = adminMap[gc] ? (isVi ? adminMap[gc].vi : adminMap[gc].en) || gc : gc;
+        var pct = totalQty > 0 ? (d.qty / totalQty * 100).toFixed(1) : '0.0';
+        var barW = maxQty > 0 ? Math.round(d.qty / maxQty * 100) : 0;
+        var safeSN = escapeHtml(speciesName).replace(/'/g, "\\'");
+        var safeGC = escapeHtml(gc).replace(/'/g, "\\'");
+        html += '<tr class="kpi-drill-row" onclick="kpiDrillPlantedSpeciesGroupFarmers(\'' + safeSN + '\',\'' + safeGC + '\')">';
+        html += '<td>' + (i + 1) + '</td>';
+        html += '<td>' + escapeHtml(gLabel) + '</td>';
+        html += '<td>' + d.farmers.size + '</td>';
+        html += '<td>' + Math.round(d.qty).toLocaleString() + '</td>';
+        html += '<td><div style="background:#e9ecef;border-radius:3px;height:14px;"><div style="width:' + barW + '%;background:#5b8c5a;height:14px;border-radius:3px;"></div></div><small>' + pct + '%</small></td>';
+        html += '</tr>';
+    });
+    if (gKeys.length === 0) html += '<tr><td colspan="5" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
+    html += '</tbody></table></div>';
+    kpiDrillPush(title, html);
+}
+
+// Shade Trees Planted KPI → Species → Group → Farmers
+function kpiDrillPlantedSpeciesGroupFarmers(speciesName, groupCode) {
+    var isVi = currentLang === 'vi';
+    var farmers = filteredData.farmers || [];
+    var farmerMap = {};
+    (rawData.farmers || []).forEach(function (f) { farmerMap[f.Farmer_ID] = f; });
+    var fids = new Set(farmers.map(function (f) { return f.Farmer_ID; }));
+    var suppAll = rawData.supported || [];
+    var farmerData = {};
+    suppAll.forEach(function (s) {
+        var sn = (s.Species_Name || '').trim();
+        if (!fids.has(s.Farmer_ID) || !sn || sn === 'Cỏ lạc dại' || sn !== speciesName) return;
+        var ff = farmerMap[s.Farmer_ID] || {};
+        var gc = ff.Farmer_Group_Name || 'N/A';
+        if (gc !== groupCode) return;
+        var fid = s.Farmer_ID;
+        if (!farmerData[fid]) farmerData[fid] = { name: ff.Full_Name || fid, qty: 0 };
+        farmerData[fid].qty += parseFloat(s.Quantity) || 0;
+    });
+    var fKeys = Object.keys(farmerData).sort(function (a, b) { return farmerData[b].qty - farmerData[a].qty; });
+    var totalQty = fKeys.reduce(function (s, k) { return s + farmerData[k].qty; }, 0);
+    var gLabel = adminMap[groupCode] ? (isVi ? adminMap[groupCode].vi : adminMap[groupCode].en) || groupCode : groupCode;
+    var title = speciesName + ' — ' + gLabel + ' (' + fKeys.length + ' ' + (isVi ? 'hộ' : 'farmers') + ')';
+    var html = '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
+    html += '<thead class="table-custom-header"><tr>';
+    html += '<th>#</th>';
+    html += '<th>' + (isVi ? 'Hộ dân' : 'Farmer') + '</th>';
+    html += '<th>' + (isVi ? 'Số cây' : 'Trees') + '</th>';
+    html += '</tr></thead><tbody>';
+    fKeys.forEach(function (fid, i) {
+        var d = farmerData[fid];
+        html += '<tr class="kpi-drill-row" onclick="showFarmerDetails(\'' + escapeHtml(fid) + '\')">';
+        html += '<td>' + (i + 1) + '</td>';
+        html += '<td>' + escapeHtml(d.name) + '</td>';
+        html += '<td>' + Math.round(d.qty).toLocaleString() + '</td>';
+        html += '</tr>';
+    });
+    if (fKeys.length === 0) html += '<tr><td colspan="3" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
+    html += '</tbody><tfoot><tr><td colspan="2"><strong>' + (isVi ? 'Tổng' : 'Total') + '</strong></td><td><strong>' + Math.round(totalQty).toLocaleString() + '</strong></td></tr></tfoot></table></div>';
     kpiDrillPush(title, html);
 }
 
