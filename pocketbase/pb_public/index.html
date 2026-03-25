@@ -195,14 +195,14 @@
                         <div class="kpi-label" data-i18n="kpi9">Tỷ lệ sống</div>
                     </div>
                 </div>
-                <div class="col-4 col-md-2">
+                <div class="col-4 col-md-2 d-none">
                     <div class="kpi-card" data-kpi-link="yearly" onclick="showKpiDrilldown('cherryVol')" title="Xem dữ liệu hàng năm">
                         <div class="kpi-icon"><i class="fas fa-weight-hanging"></i></div>
                         <div class="kpi-value" id="kpi10">0.00</div>
                         <div class="kpi-label" data-i18n="kpi10">SL đại trà (T)</div>
                     </div>
                 </div>
-                <div class="col-4 col-md-2">
+                <div class="col-4 col-md-2 d-none">
                     <div class="kpi-card" data-kpi-link="yearly" onclick="showKpiDrilldown('hqVol')" title="Xem dữ liệu hàng năm">
                         <div class="kpi-icon"><i class="fas fa-star"></i></div>
                         <div class="kpi-value" id="kpi11">0.00</div>
@@ -532,25 +532,25 @@
                                         </div>
                                     </div>
                                     <div class="home-card-col">
-                                        <div class="home-card data-icon-card" onclick="openDataBrowser('Plots')">
+                                        <div class="home-card data-icon-card" onclick="navigateToModule('plots')">
                                             <div class="home-card-icon data-icon"><i class="fas fa-map-marked-alt"></i></div>
                                             <div class="home-card-label" data-i18n="homeCardPlots">Lô đất</div>
                                         </div>
                                     </div>
                                     <div class="home-card-col">
-                                        <div class="home-card data-icon-card" onclick="openDataBrowser('Supported')">
+                                        <div class="home-card data-icon-card" onclick="navigateToModule('supported')">
                                             <div class="home-card-icon data-icon"><i class="fas fa-hands-helping"></i></div>
                                             <div class="home-card-label" data-i18n="homeCardSupported">Hỗ trợ</div>
                                         </div>
                                     </div>
                                     <div class="home-card-col">
-                                        <div class="home-card data-icon-card" onclick="openDataBrowser('Yearly_Data')">
+                                        <div class="home-card data-icon-card" onclick="navigateToModule('yearly')">
                                             <div class="home-card-icon data-icon"><i class="fas fa-calendar-check"></i></div>
                                             <div class="home-card-label" data-i18n="homeCardYearly">Đánh giá hàng năm</div>
                                         </div>
                                     </div>
                                     <div class="home-card-col">
-                                        <div class="home-card data-icon-card home-card-assess" onclick="showSurvivalAssessment()">
+                                        <div class="home-card data-icon-card home-card-assess" onclick="showKpiDrilldown('survivalRate')">
                                             <div class="home-card-icon data-icon"><i class="fas fa-seedling"></i></div>
                                             <div class="home-card-label" data-i18n="homeCardSurvival">Tỷ lệ sống</div>
                                         </div>
@@ -884,6 +884,18 @@
                                         <span data-i18n="dtPlotsTab">Lô đất</span>
                                         <span class="badge bg-secondary ms-1" id="dtPlotsCount">0</span>
                                     </button></li>
+                                <li class="nav-item"><button class="nav-link" id="dt-support-tab" data-bs-toggle="tab"
+
+                                        data-bs-target="#dt-support-pane" type="button" role="tab">
+
+                                        <i class="fas fa-hands-helping"></i>
+
+                                        <span data-i18n="dtSupportTab">H&#7895; tr&#417;</span>
+
+                                        <span class="badge bg-secondary ms-1" id="dtSupportCount">0</span>
+
+                                    </button></li>
+
                                 <li class="nav-item"><button class="nav-link" id="dt-yearly-tab" data-bs-toggle="tab"
                                         data-bs-target="#dt-yearly-pane" type="button" role="tab">
                                         <i class="fas fa-calendar-check"></i>
@@ -914,6 +926,26 @@
                                     </div>
                                     <div class="px-3 py-2" id="dtPlotsContent"></div>
                                 </div>
+                                <div class="tab-pane fade" id="dt-support-pane">
+
+                                    <div class="px-3 py-2">
+
+                                        <div class="input-group input-group-sm" style="max-width:400px;">
+
+                                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+
+                                            <input type="text" class="form-control" id="dtSupportSearch"
+
+                                                placeholder="T&#236;m ki&#7871;m..." oninput="dtFilterTable('support')">
+
+                                        </div>
+
+                                    </div>
+
+                                    <div class="px-3 py-2" id="dtSupportContent"></div>
+
+                                </div>
+
                                 <div class="tab-pane fade" id="dt-yearly-pane">
                                     <div class="px-3 py-2">
                                         <div class="input-group input-group-sm" style="max-width:400px;">

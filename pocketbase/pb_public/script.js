@@ -150,7 +150,7 @@ const translations = {
 
         // Tab Names
         tabAnalytics: "Phân tích dữ liệu",
-        tabDataTables: "Biểu dữ liệu", dtFarmersTab: "Hộ dân", dtPlotsTab: "Lô đất", dtYearlyTab: "Đánh giá hàng năm", dtNoData: "Chưa có dữ liệu phù hợp với bộ lọc", dtFarmerName: "Tên hộ dân",
+        tabDataTables: "Biểu dữ liệu", dtFarmersTab: "Hộ dân", dtPlotsTab: "Lô đất", dtSupportTab: "Hỗ trợ", dtYearlyTab: "Đánh giá hàng năm", dtNoData: "Chưa có dữ liệu phù hợp với bộ lọc", dtFarmerName: "Tên hộ dân",
         tabConfig: "Cấu hình", tabUserMng: "Quản lý Nhân sự", headerUserList: "Danh sách nhân viên", btnAddUser: "Thêm nhân viên",
 
         // User Table Columns
@@ -245,7 +245,7 @@ const translations = {
         thTrainId: "Train ID", btnAddLibrary: "Add New",
 
         tabAnalytics: "Data Analytics",
-        tabDataTables: "Data Tables", dtFarmersTab: "Farmers", dtPlotsTab: "Plots", dtYearlyTab: "Yearly Data", dtNoData: "No data matching current filters", dtFarmerName: "Farmer Name",
+        tabDataTables: "Data Tables", dtFarmersTab: "Farmers", dtPlotsTab: "Plots", dtSupportTab: "Support", dtYearlyTab: "Yearly Data", dtNoData: "No data matching current filters", dtFarmerName: "Farmer Name",
 
         tabConfig: "Configuration", tabUserMng: "HR Management", headerUserList: "Staff List", btnAddUser: "Add Staff",
 
@@ -1526,31 +1526,22 @@ function updateUI(f, p, y, s, sc) {
     }
     $('#kpi8').text(kpi8Pct);
     $('#kpi8').attr('title', kpi8Title);
-    // KPI9: Survival rate = sum(Trees_Alive latest per plot/species) / sum(planted for evaluated species)
+    // KPI9: Alive = raw sum Trees_Alive (only species with planted data) / plantedFromSupp
     var scData = sc || filteredData.survival_check || [];
-    var plotFarmerMap9 = {};
-    (rawData.plots || []).forEach(function(p) { plotFarmerMap9[String(p.Plot_Id || '')] = String(p.Farmer_ID || ''); });
-    var scLatest9 = {};
+    var spIdToName9 = {};
+    treePlanted.forEach(function(s9) {
+        var sn9 = (s9.Species_Name || '').trim(); if (!sn9) return;
+        var spId9 = getSpeciesId(sn9);
+        if (spId9 !== sn9) spIdToName9[spId9] = sn9;
+        spIdToName9[sn9] = sn9;
+    });
+    var totalAlive9 = 0;
     scData.forEach(function(r9) {
-        var pk = (r9.Plot_ID || '').trim(), sp9 = (r9.Species_Code || '').trim();
-        if (!pk || !sp9) return;
-        var k9 = pk + '\x00' + sp9, rnd9 = String(r9.Check_Round || '');
-        if (!scLatest9[k9] || rnd9 >= scLatest9[k9].r) scLatest9[k9] = { r: rnd9, alive: parseFloat(r9.Trees_Alive) || 0, spCode: sp9 };
+        var code9 = (r9.Species_Code || '').trim(); if (!code9) return;
+        if (!spIdToName9[code9]) return; // only species with planted records
+        totalAlive9 += parseFloat(r9.Trees_Alive) || 0;
     });
-    var totalAlive9 = 0, evalSpCodes9 = new Set();
-    Object.keys(scLatest9).forEach(function(k9) { totalAlive9 += scLatest9[k9].alive; evalSpCodes9.add(scLatest9[k9].spCode); });
-    var evalSpNames9 = new Set();
-    evalSpCodes9.forEach(function(code) {
-        evalSpNames9.add(code);
-        var sp = speciesMap[code];
-        if (sp) { if (sp.vi) evalSpNames9.add(sp.vi.trim()); if (sp.en) evalSpNames9.add(sp.en.trim()); }
-    });
-    var fids9 = new Set(f.map(function(ff) { return ff.Farmer_ID; }));
-    var totalPlanted9 = 0;
-    (rawData.supported || []).forEach(function(s9) {
-        if (!fids9.has(s9.Farmer_ID)) return;
-        if (evalSpNames9.has((s9.Species_Name || '').trim())) totalPlanted9 += parseFloat(s9.Quantity) || 0;
-    });
+    var totalPlanted9 = plantedFromSupp; // same source as KPI5 = 89,882
     var survRate = totalPlanted9 > 0 ? (totalAlive9 / totalPlanted9 * 100).toFixed(2) + '%' : '0.00%';
     $('#kpi9').text(survRate);
     $('#kpi9').attr('title', Math.round(totalAlive9).toLocaleString() + ' / ' + Math.round(totalPlanted9).toLocaleString());
@@ -1646,19 +1637,40 @@ function drawCharts(farmers, plots, yearly) {
             }
         });
 
-    // 4. Manage By (NEW CHART)
-    // Dữ liệu: Non-PFFP, Slow Forest, PFFP/WWF-Việt Nam
+    // 4. Manage By — dùng farmer_year.Program (SLO / SLO1 / PFFP)
+    const PROG_LABEL_MAP = { 'SLO': 'Slow Forest', 'SLO1': 'Non-Slowforest', 'PFFP': 'PFFP/WWF-Vi\u1ec7t Nam' };
+    let fidsSet = new Set(farmers.map(f => String(f['Farmer_ID'])));
+    let activeYrs = getSelectedValues('year');
+    // Map each farmer to their SINGLE latest-year program (avoids double-counting across years)
+    let farmerProgMap = {};  // fid -> { year: latestYear, prog: latestProg }
+    (rawData.farmer_year || []).forEach(function(fy) {
+        var fid = String(fy['Farmer_ID'] || '').trim();
+        if (!fidsSet.has(fid)) return;
+        var fyYear = String(getFarmerYearValue(fy) || '').trim();
+        if (activeYrs && activeYrs !== 'All' && activeYrs.length > 0) {
+            if (!activeYrs.map(String).includes(fyYear)) return;
+        }
+        var prog = String(fy['Program'] || '').trim().toUpperCase();
+        if (!prog) return;
+        // Keep latest year wins — each farmer assigned to exactly ONE program
+        if (!farmerProgMap[fid] || fyYear > farmerProgMap[fid].year) {
+            farmerProgMap[fid] = { year: fyYear, prog: prog };
+        }
+    });
     let manCounts = {};
-    farmers.forEach(f => {
-        let label = getManageByGroup(f['Manage by']);
-        if (!manCounts[label]) manCounts[label] = 0;
-        manCounts[label]++;
+    Object.keys(farmerProgMap).forEach(function(fid) {
+        var prog = farmerProgMap[fid].prog;
+        var lbl = PROG_LABEL_MAP[prog] || prog;
+        if (!manCounts[lbl]) manCounts[lbl] = { count: 0, code: prog };
+        manCounts[lbl].count++;
     });
-    let manData = Object.keys(manCounts).map(k => {
-        return { label: k, value: manCounts[k] };
+    // Farmers with no farmer_year record (or outside selected year) → N/A
+    farmers.forEach(function(f) {
+        var fid = String(f['Farmer_ID']);
+        if (!farmerProgMap[fid]) { var lbl = 'N/A'; if (!manCounts[lbl]) manCounts[lbl] = { count: 0, code: 'NA' }; manCounts[lbl].count++; }
     });
-    // Sort desc by value
-    manData.sort((a, b) => b.value - a.value);
+    let manData = Object.keys(manCounts).map(function(k) { return { label: k, value: manCounts[k].count, code: manCounts[k].code }; });
+    manData.sort(function(a, b) { return b.value - a.value; });
 
     if (chartInstances['chartManageBy']) chartInstances['chartManageBy'].destroy();
     // Kiểm tra xem canvas có tồn tại không (do người dùng thêm HTML)
@@ -1673,9 +1685,7 @@ function drawCharts(farmers, plots, yearly) {
                 plugins: { legend: { display: false }, datalabels: integerDataLabels },
                 onClick: (e, els) => {
                     if (els.length > 0) {
-                        // Với logic mới, label chính là value (Non-PFFP, Slow Forest...)
-                        let lbl = manData[els[0].index].label;
-                        // Với logic mới, label chính là value (Non-PFFP, Slow Forest...)
+                        let lbl = manData[els[0].index].code || manData[els[0].index].label;
                         setFilterFromChart('manageBy', lbl);
                     }
                 }
@@ -4601,19 +4611,38 @@ function showCustomConfirm(m, t) { return new Promise((r) => { const e = documen
 function stripHtml(h) { var t = document.createElement("DIV"); t.innerHTML = h; return t.textContent || t.innerText || ""; }
 function exportTable() {
     try {
-        if (!userPermissions.canExport) {
-            alert("Bạn không có quyền xuất dữ liệu.");
-            return;
-        } if (!filteredData.farmers || filteredData.farmers.length === 0) { alert(translations[currentLang].noDataToExport); return; } var wb = XLSX.utils.book_new(); const cs = (sn, tid, hk) => { const dt = $('#' + tid).DataTable(); if (!dt) return; const dd = dt.rows({ search: 'applied' }).data().toArray(); if (dd.length === 0) return; const h = hk.map(k => translations[currentLang][k] || k); const ed = dd.map(ra => { let ro = {}; h.forEach((hd, idx) => { let cd = ra[idx]; if (typeof cd === 'string' && cd.includes('<')) { cd = stripHtml(cd); } ro[hd] = cd; }); return ro; }); var ws = XLSX.utils.json_to_sheet(ed); XLSX.utils.book_append_sheet(wb, ws, sn); };
-        const fH = ['thNo', 'thYear', 'thFarmerID', 'thName', 'thYOB', 'thGender', 'thPhone', 'thGroup', 'thVillage', 'thCommune', 'thAddress', 'thIDCard', 'thEthnicity', 'thEcoStatus', 'thHHCircum', 'thMemCount', 'thWorkerCount', 'thTotalArea', 'thPlotCount', 'thSupportedBy', 'thSupportType', 'thRegFarms', 'thRegArea', 'thStaff', 'thStatus', 'thActivity', 'thDate', 'thUpdate']; const pH = ['thNo', 'thPlotId', 'thFarmerID', 'thName', 'thPlotName', 'thPlotArea', 'thLURC', 'thBorderForest', 'thPlaceName', 'thLocation', 'thShadeTreesBefore', 'thNameTreesBefore', 'thCoffeeTrees', 'thPlantYear', 'thNotes', 'thMapSheet', 'thSubMap', 'thStatus', 'thActivity', 'thUpdate']; const yH = ['thNo', 'thFarmerID', 'thName', 'thRecordID', 'thYearVal', 'thCherryVol', 'thVolHQ', 'thIncome', 'thFertApplied', 'thFertName', 'thFertVol', 'thFertCost', 'thPestApplied', 'thPestName', 'thPestVol', 'thPestCost', 'thHerbApplied', 'thHerbName', 'thHerbVol', 'thHerbCost', 'thLaborCost', 'thOtherCost', 'thTreeSupportBy', 'thTreesPlanted', 'thSpecies', 'thYearPlanted', 'thTreesDead', 'thSurvivalRate', 'thFertWWF', 'thLimeSlow', 'thCoverCrop', 'thSoilTest', 'thTraining', 'thOp6', 'thRegSales', 'thRealSales', 'thRevSales', 'thBoughtVia', 'thStatus', 'thActivity', 'thUpdate']; cs("Farmers", 'mainTable', fH); cs("Plots", 'plotsTable', pH); cs("Yearly_Data", 'yearlyTable', yH); const n = new Date(); const p = (num) => num.toString().padStart(2, '0'); const dateStr = `${n.getFullYear()}${p(n.getMonth() + 1)}${p(n.getDate())}_${p(n.getHours())}${p(n.getMinutes())}${p(n.getSeconds())}`; let fY = getSelectedValues('year');
-        let fV = getSelectedValues('village'); let yearPart = (fY === 'All' || fY.length > 1) ? n.getFullYear() : fY[0];
-        let villagePart = (fV === 'All' || fV.length > 1) ? "" : `_${fV[0].replace(/[^a-zA-Z0-9]/g, '')}`; let fn = "";
-        if (villagePart !== "") { fn = `PFFP${villagePart}_${yearPart}_${dateStr}.xlsx`; } else { fn = `PFFP_Raw_data_${yearPart}_${dateStr}.xlsx`; } XLSX.writeFile(wb, fn);
-    } catch (e) {
-        console.error(e);
-        alert("Lỗi xuất Excel.");
-    }
+        if (!userPermissions.canExport) { alert('Ban khong co quyen xuat du lieu.'); return; }
+        if (!filteredData.farmers || filteredData.farmers.length === 0) { alert(translations[currentLang].noDataToExport); return; }
+        var wb = XLSX.utils.book_new();
+        var addSheet = function(sheetName, data, labelMap) {
+            if (!data || data.length === 0 || !labelMap) return;
+            var keys = Object.keys(labelMap);
+            var headers = keys.map(function(k) { return translations[currentLang][labelMap[k]] || k; });
+            var rows = data.map(function(rec) {
+                return keys.map(function(k) {
+                    var val = resolveValue(k, rec[k], sheetName);
+                    if (val === null || val === undefined) val = '';
+                    if (typeof val === 'string' && val.includes('<')) val = stripHtml(val);
+                    return val;
+                });
+            });
+            var ws = XLSX.utils.aoa_to_sheet([headers].concat(rows));
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        };
+        var fIds = new Set(filteredData.farmers.map(function(f) { return String(f.Farmer_ID); }));
+        addSheet('Farmers',     filteredData.farmers, FIELD_LABELS.Farmers);
+        addSheet('Plots',       (filteredData.plots   || []).filter(function(p){ return fIds.has(String(p.Farmer_ID)); }), FIELD_LABELS.Plots);
+        addSheet('Yearly_Data', (filteredData.yearly  || []).filter(function(y){ return fIds.has(String(y.Farmer_ID)); }), FIELD_LABELS.Yearly_Data);
+        var n = new Date(), pad = function(x){ return String(x).padStart(2,'0'); };
+        var dateStr = n.getFullYear()+pad(n.getMonth()+1)+pad(n.getDate())+'_'+pad(n.getHours())+pad(n.getMinutes())+pad(n.getSeconds());
+        var fY = getSelectedValues('year'), fV = getSelectedValues('village');
+        var yearPart    = (!fY || fY==='All' || fY.length>1) ? n.getFullYear() : fY[0];
+        var villagePart = (!fV || fV==='All' || fV.length>1) ? '' : '_'+fV[0].replace(/[^a-zA-Z0-9]/g,'');
+        var fn = villagePart ? 'PFFP'+villagePart+'_'+yearPart+'_'+dateStr+'.xlsx' : 'PFFP_Raw_data_'+yearPart+'_'+dateStr+'.xlsx';
+        XLSX.writeFile(wb, fn);
+    } catch (e) { console.error(e); alert('Loi xuat Excel: ' + (e.message || e)); }
 }
+
 // --- EXCEL EXPORT: Detail View (multi-sheet workbook) ---
 function exportDetailToExcel(farmerId) {
     if (!userPermissions.canExport) {
@@ -5047,15 +5076,17 @@ function navigateToModule(module) {
     }
 
     var moduleMap = {
-        'farmers':   { mainTab: 'dashboard-main-tab', subTab: 'farmers-tab' },
-        'plots':     { mainTab: 'dashboard-main-tab', subTab: 'plots-tab' },
-        'yearly':    { mainTab: 'dashboard-main-tab', subTab: 'yearly-tab' },
+        'farmers':   { mainTab: 'datatable-main-tab', subTab: 'dt-farmers-tab' },
+        'plots':     { mainTab: 'datatable-main-tab', subTab: 'dt-plots-tab' },
+        'supported': { mainTab: 'datatable-main-tab', subTab: 'dt-support-tab' },
+        'yearly':    { mainTab: 'datatable-main-tab', subTab: 'dt-yearly-tab' },
         'analytics': { mainTab: 'analytics-main-tab' },
         'users':     { mainTab: 'config-main-tab',    subTab: 'users-tab' }
     };
 
     var target = moduleMap[module];
     if (target) {
+        document.body.classList.remove('tab-home');
         // Show filters when navigating to data modules (mobile responsive)
         document.body.classList.add('show-filters');
         // Switch main tab
@@ -5066,13 +5097,19 @@ function navigateToModule(module) {
         }
         // Switch sub-tab if needed
         if (target.subTab) {
-            setTimeout(function () {
-                var subTabEl = document.getElementById(target.subTab);
+            var subTabId = target.subTab;
+            // Use rAF for immediate sub-tab switch (no visible delay showing default farmers tab)
+            requestAnimationFrame(function() {
+                var subTabEl = document.getElementById(subTabId);
                 if (subTabEl) {
                     var subTab = new bootstrap.Tab(subTabEl);
                     subTab.show();
+                    // If support tab, render immediately
+                    if (subTabId === 'dt-support-tab') {
+                        requestAnimationFrame(function() { dtRenderSupportTable(); });
+                    }
                 }
-            }, 150);
+            });
         }
     } else if (['op6', 'species', 'admin', 'training'].indexOf(module) >= 0) {
         showLibraryList(module);
@@ -5185,6 +5222,48 @@ function dbUpdateBreadcrumb() {
 
 function dbRenderYears() {
     var isVi = currentLang === 'vi';
+    var yearCodeToLabel = function(y) { var m = String(y).match(/^(\d{2})Y$/i); return m ? '20' + m[1] : y; };
+    if (dbState.type === 'Farmers') {
+        var yearFarmerMap = {};
+        (rawData.farmer_year || []).forEach(function(fy) {
+            var yr = String(fy['Year'] || '').trim();
+            var fid = String(fy['Farmer_ID'] || '').trim();
+            if (yr && fid) { if (!yearFarmerMap[yr]) yearFarmerMap[yr] = new Set(); yearFarmerMap[yr].add(fid); }
+        });
+        var years = Object.keys(yearFarmerMap).sort().reverse().map(function(yr) {
+            return { code: yr, label: yearCodeToLabel(yr), count: yearFarmerMap[yr].size };
+        });
+        var html = '<div class="db-toolbar"><div class="db-level-title">' + (isVi ? 'Ch\u1ecdn n\u0103m tham gia' : 'Select Participation Year') + '</div></div>';
+        html += '<div class="db-year-grid">';
+        years.forEach(function(y) {
+            html += '<div class="db-year-card" onclick="dbSelectYear(\'' + escapeHtml(y.code) + '\')"><div class="db-year-label">' + escapeHtml(y.label) + '</div><div class="db-year-count">' + y.count + ' ' + (isVi ? 'h\u1ed9' : 'farmers') + '</div></div>';
+        });
+        html += '</div>';
+        document.getElementById('dbContent').innerHTML = html;
+        dbRenderedData = years;
+        return;
+    }
+    if (dbState.type === 'Supported') {
+        // Count support records per year from rawData.supported
+        var yearSupportMap = {};
+        (rawData.supported || []).forEach(function(s) {
+            var yr = String(s['Year'] || '').trim();
+            if (yr) { yearSupportMap[yr] = (yearSupportMap[yr] || 0) + 1; }
+        });
+        var years = Object.keys(yearSupportMap).sort().reverse().map(function(yr) {
+            return { code: yr, label: yearCodeToLabel(yr), count: yearSupportMap[yr] };
+        });
+        var html = '<div class="db-toolbar"><div class="db-level-title">' + (isVi ? 'Ch\u1ecdn n\u0103m h\u1ed7 tr\u1ee3' : 'Select Support Year') + '</div></div>';
+        html += '<div class="db-year-grid">';
+        years.forEach(function(y) {
+            html += '<div class="db-year-card" onclick="dbSelectYear(\'' + escapeHtml(y.code) + '\')"><div class="db-year-label">' + escapeHtml(y.label) + '</div><div class="db-year-count">' + y.count + ' ' + (isVi ? 'b\u1ea3n ghi' : 'records') + '</div></div>';
+        });
+        html += '</div>';
+        document.getElementById('dbContent').innerHTML = html;
+        dbRenderedData = years;
+        return;
+    }
+    // Original logic for Plots / Supported / Yearly_Data
     // Get participation years from dropMap
     var years = [];
     Object.keys(dropMap).forEach(function (k) {
@@ -5217,6 +5296,59 @@ function dbRenderYears() {
 }
 
 function dbSelectYear(yearCode) {
+    // For Farmers: close data browser, set year filter, navigate to DataTable view
+    if (dbState.type === 'Farmers') {
+        // 1. Deactivate data-browser-pane
+        var dbPane = document.getElementById('data-browser-pane');
+        if (dbPane) { dbPane.classList.remove('show', 'active'); }
+        document.body.classList.remove('tab-home');
+        // 2. Set year filter - the year filter uses a custom jQuery checkbox widget:
+        //    uncheck 'All', uncheck all items, check only the selected year code.
+        $('.check-all[data-group="year"]').prop('checked', false);
+        $('.check-item[data-group="year"]').prop('checked', false);
+        $('.check-item[data-group="year"][value="' + yearCode + '"]').prop('checked', true);
+        updateDropdownLabel('year');
+        // 3. applyFilter() uses rAF internally; double-rAF ensures filteredData.farmers
+        //    is fully updated BEFORE we navigate and render the table.
+        applyFilter();
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                var mainTabEl = document.getElementById('datatable-main-tab');
+                if (mainTabEl) { new bootstrap.Tab(mainTabEl).show(); }
+                setTimeout(function() {
+                    var subTabEl = document.getElementById('dt-farmers-tab');
+                    if (subTabEl) { new bootstrap.Tab(subTabEl).show(); }
+                    dtRenderFarmersTable();
+                }, 60);
+            });
+        });
+        return;
+    }
+    // For Supported: close data browser, set yearSupport filter, navigate to Support DataTable
+    if (dbState.type === 'Supported') {
+        var dbPane = document.getElementById('data-browser-pane');
+        if (dbPane) { dbPane.classList.remove('show', 'active'); }
+        document.body.classList.remove('tab-home');
+        // yearSupport uses its own checkbox widget
+        $('.check-all[data-group="yearSupport"]').prop('checked', false);
+        $('.check-item[data-group="yearSupport"]').prop('checked', false);
+        $('.check-item[data-group="yearSupport"][value="' + yearCode + '"]').prop('checked', true);
+        updateDropdownLabel('yearSupport');
+        applyFilter();
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                var mainTabEl = document.getElementById('datatable-main-tab');
+                if (mainTabEl) { new bootstrap.Tab(mainTabEl).show(); }
+                setTimeout(function() {
+                    var subTabEl = document.getElementById('dt-support-tab');
+                    if (subTabEl) { new bootstrap.Tab(subTabEl).show(); }
+                    dtRenderSupportTable();
+                }, 60);
+            });
+        });
+        return;
+    }
+    // Original behavior for Plots / Yearly_Data
     dbState.year = yearCode;
     dbState.group = null;
     dbState.farmerId = null;
@@ -5576,21 +5708,100 @@ function dtRenderAllTables() {
     dtRenderFarmersTable();
     dtRenderPlotsTable();
     dtRenderYearlyTable();
+    dtRenderSupportTable();
 }
 
 function dtRefreshIfActive() {
     var pane = document.getElementById('datatable-main-pane');
     if (pane && pane.classList.contains('active')) {
         // Clear column filters when global filters change
-        dtColumnFilters = { Farmers: {}, Plots: {}, Yearly_Data: {} };
+        dtColumnFilters = { Farmers: {}, Plots: {}, Yearly_Data: {}, Supported: {} };
         dtRenderAllTables();
     }
 }
 
+
+function dtRenderSupportTable() {
+    var isVi = currentLang === 'vi';
+    // Use rawData.supported as base, then apply the yearSupport filter inline
+    // Use filteredData.supported (already filtered by applyFilter with all active filters)
+    // Fallback to rawData in case filteredData not yet populated
+    var supported = (filteredData.supported || rawData.supported || rawData.support || []).slice();
+    var searchEl = document.getElementById('dtSupportSearch');
+    var searchVal = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
+
+    var farmerMap = {};
+    (rawData.farmers || []).forEach(function(f) { farmerMap[f.Farmer_ID] = f; });
+
+    if (searchVal) {
+        supported = supported.filter(function(s) {
+            var farmer = farmerMap[s.Farmer_ID] || {};
+            var searchable = Object.values(s).concat([farmer.Full_Name || '']).join(' ').toLowerCase();
+            return searchable.indexOf(searchVal) >= 0;
+        });
+    }
+
+    if (!dtColumnFilters.Supported) dtColumnFilters.Supported = {};
+    supported = dtApplyColumnFilters(supported, 'Supported', null);
+
+    var countEl = document.getElementById('dtSupportCount');
+    if (countEl) countEl.textContent = supported.length;
+
+    var cols = ['Support_Type', 'Date', 'Species_Name', 'Quantity', 'Unit', 'Year', 'Program', 'Note'];
+    var labels = FIELD_LABELS.Supported || {};
+
+    var html = '<div class="db-toolbar">';
+    html += '<div class="db-level-title">' + (isVi ? 'Danh s\u00e1ch h\u1ed7 tr\u1ee3' : 'Support List') + ' (' + supported.length + ')</div>';
+    if (userPermissions.canAdd) {
+        html += '<button class="btn-add" onclick="showAddSupportedModal(\'\')"><i class="fas fa-plus me-1"></i>' + (isVi ? 'Th\u00eam h\u1ed7 tr\u1ee3' : 'Add Support') + '</button>';
+    }
+    html += '</div>';
+
+    if (supported.length === 0) {
+        html += '<p class="text-muted mt-3 px-3">' + translations[currentLang].dtNoData + '</p>';
+        document.getElementById('dtSupportContent').innerHTML = html;
+        return;
+    }
+
+    html += '<div class="table-responsive"><table class="db-record-table" id="dtSupportTable">';
+    html += '<thead><tr><th data-col="_idx">#<span class="sort-icon"></span></th>';
+    html += '<th data-col="_farmer">' + (isVi ? 'H\u1ecd t\u00ean' : 'Farmer Name') + '<span class="sort-icon"></span></th>';
+    cols.forEach(function(k) {
+        var lk = labels[k] || k;
+        html += '<th data-col="' + escapeHtml(k) + '">' + escapeHtml(translations[currentLang][lk] || k) + '<span class="sort-icon"></span>' + dtBuildFilterIcon(k, 'Supported') + '</th>';
+    });
+    html += '<th>' + (isVi ? 'Thao t\u00e1c' : 'Actions') + '</th>';
+    html += '</tr></thead><tbody>';
+
+    supported.forEach(function(s, idx) {
+        var farmer = farmerMap[s.Farmer_ID] || {};
+        var farmerName = farmer.Full_Name || s.Farmer_ID || '';
+        var sid = escapeHtml(s.Support_ID || '');
+        html += '<tr style="cursor:pointer" onclick="showSingleItemDetails(\'Supported\', \'' + sid + '\')">';
+        html += '<td>' + (idx + 1) + '</td>';
+        html += '<td>' + getActivityIcon('Farmers', s.Farmer_ID, farmer.Activity) + escapeHtml(farmerName) + '</td>';
+        cols.forEach(function(k) {
+            var val = s[k];
+            if (val === undefined || val === null) val = '';
+            val = resolveValue(k, val, 'Supported');
+            var emptyClass = (String(val).trim() === '') ? ' class="db-empty-cell"' : '';
+            html += '<td' + emptyClass + '>' + escapeHtml(String(val)) + '</td>';
+        });
+        html += '<td class="text-nowrap" onclick="event.stopPropagation()">';
+        if (canEditRecord(s)) html += '<button class="db-action-btn btn-edit" onclick="openEditForm(\'Supported\', \'' + sid + '\')"><i class="fas fa-edit"></i></button>';
+        if (canEditRecord(s) && userPermissions.canDelete) html += '<button class="db-action-btn btn-delete" onclick="deleteItem(\'Supported\', \'' + sid + '\')"><i class="fas fa-trash"></i></button>';
+        html += '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+
+    document.getElementById('dtSupportContent').innerHTML = html;
+    dtAttachSort('dtSupportTable', supported, cols, 'Supported', 'Support_ID');
+}
 function dtFilterTable(subTab) {
     if (subTab === 'farmers') dtRenderFarmersTable();
     else if (subTab === 'plots') dtRenderPlotsTable();
     else if (subTab === 'yearly') dtRenderYearlyTable();
+    else if (subTab === 'support') dtRenderSupportTable();
 }
 
 function dtRenderFarmersTable() {
@@ -5931,6 +6142,7 @@ function dtShowColumnFilter(btn, col, type) {
     var data, farmerMap = {};
     if (type === 'Farmers') data = (filteredData.farmers || []);
     else if (type === 'Plots') data = (filteredData.plots || []);
+    else if (type === 'Supported') data = (filteredData.supported || rawData.supported || []);
     else data = (filteredData.yearly || []);
     (rawData.farmers || []).forEach(function(f) { farmerMap[f.Farmer_ID] = f; });
 
@@ -5992,6 +6204,7 @@ function dtApplyColumnFilterPopup(col, type, btn) {
     if (type === 'Farmers') dtRenderFarmersTable();
     else if (type === 'Plots') dtRenderPlotsTable();
     else if (type === 'Yearly_Data') dtRenderYearlyTable();
+    else if (type === 'Supported') dtRenderSupportTable();
 }
 
 function dtClearColumnFilter(col, type, btn) {
@@ -6002,6 +6215,7 @@ function dtClearColumnFilter(col, type, btn) {
     if (type === 'Farmers') dtRenderFarmersTable();
     else if (type === 'Plots') dtRenderPlotsTable();
     else if (type === 'Yearly_Data') dtRenderYearlyTable();
+    else if (type === 'Supported') dtRenderSupportTable();
 }
 // === END DATA TABLES TAB ===
 
@@ -6531,26 +6745,18 @@ function showKpiDrilldown(kpiType) {
             if (spId !== spName) spIdToName[spId] = spName; // ID differs from name
             spIdToName[spName] = spName; // direct match fallback
         });
-        // Alive from survival_check: latest Trees_Alive per (Plot_ID, Species_Code)
-        var scLatest3 = {};
+        // Alive from survival_check: RAW SUM Trees_Alive per species (exclude blank species_code)
+        var scBySp3 = {}, scCheckedPlots3 = {};
         (filteredData.survival_check || []).forEach(function (sc) {
             var code = (sc.Species_Code || '').trim();
             if (!code) return;
-            var mappedName = spIdToName[code]; // resolve ID or name → canonical name
-            if (!mappedName) return; // species not in our filtered set
-            var plotId = (sc.Plot_ID || '').trim();
-            var round = String(sc.Check_Round || '');
+            var mappedName = spIdToName[code]; // resolve code → canonical species name
+            if (!mappedName) return; // skip species not in support
             var alive = parseFloat(sc.Trees_Alive) || 0;
-            var key = plotId + '\x00' + mappedName;
-            if (!scLatest3[key] || round >= scLatest3[key].round) scLatest3[key] = { round: round, alive: alive };
-        });
-        var scBySp3 = {}, scCheckedPlots3 = {};
-        Object.keys(scLatest3).forEach(function (key) {
-            var parts = key.split('\x00'); var name = parts[1];
-            scBySp3[name] = (scBySp3[name] || 0) + scLatest3[key].alive;
-            var plotId = parts[0];
-            if (!scCheckedPlots3[name]) scCheckedPlots3[name] = new Set();
-            scCheckedPlots3[name].add(plotId);
+            scBySp3[mappedName] = (scBySp3[mappedName] || 0) + alive;
+            var plotId = (sc.Plot_ID || '').trim();
+            if (!scCheckedPlots3[mappedName]) scCheckedPlots3[mappedName] = new Set();
+            scCheckedPlots3[mappedName].add(plotId);
         });
         var spKeys = Object.keys(speciesStats).sort(function (a, b) { return speciesStats[b].planted - speciesStats[a].planted; });
         var html = '<div class="table-responsive"><table class="table table-sm table-striped table-hover" style="font-size:0.82rem;">';
@@ -6745,44 +6951,45 @@ function showKpiDrilldown(kpiType) {
 
     // --- Special: Survival Rate — Per species (Level 1) ---
     if (kpiType === 'survivalRate') {
-        var scSR = filteredData.survival_check || [];
-        var plotFarmerMapSR = {};
-        (filteredData.plots || []).forEach(function(p) { plotFarmerMapSR[String(p.Plot_Id || '')] = String(p.Farmer_ID || ''); });
-        // Latest Trees_Alive per (Plot_ID, Species_Code)
-        var scLatestSR = {};
-        scSR.forEach(function(r) {
-            var pk = (r.Plot_ID || '').trim(), sp2 = (r.Species_Code || '').trim();
-            if (!pk || !sp2) return;
-            var k2 = pk + '\x00' + sp2, rnd2 = String(r.Check_Round || '');
-            if (!scLatestSR[k2] || rnd2 >= scLatestSR[k2].r)
-                scLatestSR[k2] = { r: rnd2, alive: parseFloat(r.Trees_Alive) || 0, spCode: sp2 };
-        });
-        // Alive per species code
-        var spStatsSR = {};
-        Object.keys(scLatestSR).forEach(function(k2) {
-            var rec = scLatestSR[k2];
-            if (!spStatsSR[rec.spCode]) spStatsSR[rec.spCode] = { alive: 0, planted: 0 };
-            spStatsSR[rec.spCode].alive += rec.alive;
-        });
-        // Build spCode → names for matching support.Species_Name
-        var spNameToCodeSR = {};
-        Object.keys(spStatsSR).forEach(function(code) {
-            spNameToCodeSR[code] = code;
-            var sp = speciesMap[code];
-            if (sp) { if (sp.vi) spNameToCodeSR[sp.vi.trim()] = code; if (sp.en) spNameToCodeSR[sp.en.trim()] = code; }
-        });
-        // Planted per species from support (filtered farmers only)
         var fidsSR = new Set(farmers.map(function(ff) { return ff.Farmer_ID; }));
+        // Step 1: Build planted per species from support — same filter as KPI5 (unit=cây, exclude Cỏ lạc dại)
+        var spStatsSR = {};
         (rawData.supported || []).forEach(function(s) {
             if (!fidsSR.has(s.Farmer_ID)) return;
-            var code = spNameToCodeSR[(s.Species_Name || '').trim()];
-            if (!code) return;
+            var sn = (s.Species_Name || '').trim();
+            if (!sn || sn === 'Cỏ lạc dại') return;
+            if ((s.Unit || '').toLowerCase().indexOf('cây') < 0 && (s.Unit || '').toLowerCase().indexOf('tree') < 0) return;
+            var code = getSpeciesId(sn); // normalize Species_Name → code to merge duplicates (e.g. "Lát Hoa"+"Lát hoa" → "TIM-07")
+            if (!spStatsSR[code]) spStatsSR[code] = { alive: 0, planted: 0 };
             spStatsSR[code].planted += parseFloat(s.Quantity) || 0;
+        });
+        // Step 2: Add alive from survival_check — RAW SUM per species (same as KPI6)
+        var spIdToNameSR = {};
+        Object.keys(spStatsSR).forEach(function(key) {
+            var spId = getSpeciesId(key);
+            if (spId !== key) spIdToNameSR[spId] = key;
+            spIdToNameSR[key] = key;
+        });
+        var scSR = filteredData.survival_check || [];
+        var scCheckedPlotsSR = {};
+        scSR.forEach(function(r) {
+            var code2 = (r.Species_Code || '').trim(); if (!code2) return;
+            var mappedKey = spIdToNameSR[code2]; if (!mappedKey) return;
+            var alive2 = parseFloat(r.Trees_Alive) || 0;
+            if (!spStatsSR[mappedKey]) spStatsSR[mappedKey] = { alive: 0, planted: 0 };
+            spStatsSR[mappedKey].alive += alive2;
+            var plotId2 = (r.Plot_ID || '').trim();
+            if (!scCheckedPlotsSR[mappedKey]) scCheckedPlotsSR[mappedKey] = new Set();
+            scCheckedPlotsSR[mappedKey].add(plotId2);
         });
         var spKeys = Object.keys(spStatsSR).filter(function(c) { return spStatsSR[c].alive > 0 || spStatsSR[c].planted > 0; });
         spKeys.sort(function(a, b) { return spStatsSR[b].planted - spStatsSR[a].planted; });
-        var totalAliveSR = spKeys.reduce(function(s, c) { return s + spStatsSR[c].alive; }, 0);
-        var totalPlantedSR = spKeys.reduce(function(s, c) { return s + spStatsSR[c].planted; }, 0);
+        // Total: ALL planted (same as KPI5 = 89,882), ALL alive from evaluated species
+        var totalAliveSR = 0, totalPlantedSR = 0;
+        spKeys.forEach(function(c) {
+            totalPlantedSR += spStatsSR[c].planted;
+            totalAliveSR += spStatsSR[c].alive;
+        });
         var overallSurv = totalPlantedSR > 0 ? (totalAliveSR / totalPlantedSR * 100).toFixed(1) : 'N/A';
         var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'Tổng: ' : 'Total: ') + '<strong>' + Math.round(totalAliveSR).toLocaleString() + '/' + Math.round(totalPlantedSR).toLocaleString() + ' (' + overallSurv + '%)</strong></p>';
         html += '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
