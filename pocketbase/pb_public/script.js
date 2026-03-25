@@ -11,7 +11,7 @@ const TABLE_MAP = {
     'Admin':                { table: 'admin',                idCol: 'Adm_ID' },
     'Training':             { table: 'training_list',        idCol: 'Train_ID' }
 };
-const CACHE_KEY = "PFFP_DATA_CACHE_v11";
+const CACHE_KEY = "PFFP_DATA_CACHE_v12";
 const CACHE_TTL = 60 * 60 * 1000; // 1 giờ (milliseconds)
 // ==========================================================
 // GLOBAL STATE
@@ -1056,18 +1056,10 @@ function toggleLanguage() {
 function initFilters() {
     if (!rawData.farmers) return;
 
-    // 1. Year - from Farmer_Year table, fallback to Yearly_Data Year
+    // 1. Year - từ bảng farmer_year (cột year: 24Y, 25Y → hiển thị 2024, 2025)
     var fyHasData = (rawData.farmer_year || []).length > 0;
-    let uY;
-    if (fyHasData) {
-        uY = [...new Set((rawData.farmer_year || []).map(d => d['Year']))].filter(Boolean).sort();
-    } else {
-        let yFromYD = (rawData.yearly || []).map(d => d['Year']).filter(Boolean);
-        let yFromF = rawData.farmers.map(d => d['Participation Year'] || d['Participation_Year']).filter(Boolean);
-        uY = [...new Set([...yFromYD, ...yFromF])].sort();
-    }
-    // Convert year codes to readable labels: "24Y" → "2024", "25Y" → "2025"
-    var yearCodeToLabel = function(y) { var m = String(y).match(/^(\d{2})Y$/); return m ? '20' + m[1] : y; };
+    var yearCodeToLabel = function(y) { var m = String(y).match(/^(\d{2})Y$/i); return m ? '20' + m[1] : y; };
+    let uY = [...new Set((rawData.farmer_year || []).map(d => d['Year']))].filter(Boolean).sort();
     let yO = uY.map(y => ({ value: y, label_vi: yearCodeToLabel(y), label_en: yearCodeToLabel(y) }));
     populateMultiSelect('year', yO, true);
 
@@ -1105,15 +1097,8 @@ function initFilters() {
     let eO = Array.from(eS).map(e => ({ value: e, label_vi: getLabel(e, dropMap) || e, label_en: getLabel(e, dropMap) || e })).sort((a, b) => (a.label_vi).localeCompare(b.label_vi));
     populateMultiSelect('ethnicity', eO, true);
 
-    // 6. Manage By - Tree filter from farmer_year, fallback to Farmers.Manage_by
-    if (fyHasData) {
-        populateManageByTree();
-    } else {
-        // Fallback: flat list from Farmers.Manage_by using getManageByGroup
-        let mS = new Set(rawData.farmers.map(d => String(d['Manage by'] || '').trim()).filter(Boolean));
-        let mO = Array.from(mS).sort().map(m => ({ value: m, label_vi: m, label_en: m }));
-        populateMultiSelect('manageBy', mO, true);
-    }
+    // 6. Manage By - Tree filter từ bảng farmer_year (cột program × year)
+    populateManageByTree();
 
     // 7. Supported By
     let supS = new Set(); rawData.farmers.forEach(f => { if (f['Supported by']) f['Supported by'].toString().split(',').forEach(p => supS.add(p.trim())); });
@@ -1409,8 +1394,6 @@ function applyFilter() {
                 }
             }
         }
-        // Fallback ManageBy when farmer_year empty: use getManageByGroup on Farmers
-        let fManFallback = (!_fyHasData && treeSel.mode !== 'all') ? getSelectedValues('manageBy') : null;
 
         // Pre-filter: if yearSupport or supportedTypes are set, find matching farmer IDs from Supported table
         let suppFilterFIDs = null;
@@ -1432,24 +1415,14 @@ function applyFilter() {
         let filtF = (rawData.farmers || []).filter(f => {
             if (restrictedGroups.length > 0) { let fGroup = String(f['Farmer_Group_Name'] || '').trim(); if (!restrictedGroups.includes(fGroup)) return false; }
 
-            // Year filter via Farmer_Year table (or skip if farmer_year empty)
+            // Year + ManageBy filter via farmer_year (program × year)
             if (fyFilterFIDs && !fyFilterFIDs.has(f.Farmer_ID)) return false;
-            // Fallback year filter: use Participation_Year when farmer_year empty
-            if (!_fyHasData && fY !== 'All') {
-                var fPY = String(f['Participation Year'] || f['Participation_Year'] || '').trim();
-                var pyParts = fPY.split(',').map(function (s) { return s.trim(); });
-                if (!pyParts.some(function (p) { return fY.includes(p); })) return false;
-            }
             // Year Support & Supported Types filter via Supported table
             if (suppFilterFIDs && !suppFilterFIDs.has(f.Farmer_ID)) return false;
             if (fV !== 'All' && !fV.includes(f['Farmer_Group_Name'])) return false;
             if (fS !== 'All' && !fS.includes(f['Status'])) return false;
             if (fE !== 'All' && !fE.includes(f['Ethnicity'])) return false;
-            // ManageBy fallback: use getManageByGroup when farmer_year empty
-            if (fManFallback && fManFallback !== 'All') {
-                let fManVal = String(f['Manage by'] || '').trim();
-                if (!fManFallback.includes(fManVal)) return false;
-            }
+
 
             if (fSp !== 'All') { let s = f._supportedByArr; if (!(s.length === 0 && fSp.length === 0) && !s.some(i => fSp.includes(i))) return false; }
             return true;
