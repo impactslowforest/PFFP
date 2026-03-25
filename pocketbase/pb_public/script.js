@@ -1526,11 +1526,34 @@ function updateUI(f, p, y, s, sc) {
     }
     $('#kpi8').text(kpi8Pct);
     $('#kpi8').attr('title', kpi8Title);
-    // KPI9: Survival rate from survival_check (average of Survival_Rate)
+    // KPI9: Survival rate = sum(Trees_Alive latest per plot/species) / sum(planted for evaluated species)
     var scData = sc || filteredData.survival_check || [];
-    var scWithRate = scData.filter(x => { var r = parseFloat(x.Survival_Rate); return !isNaN(r) && r > 0; });
-    var survRate = scWithRate.length > 0 ? ((scWithRate.reduce((ss, x) => ss + parseFloat(x.Survival_Rate), 0) / scWithRate.length) * 100).toFixed(2) + '%' : '0.00%';
+    var plotFarmerMap9 = {};
+    (rawData.plots || []).forEach(function(p) { plotFarmerMap9[String(p.Plot_Id || '')] = String(p.Farmer_ID || ''); });
+    var scLatest9 = {};
+    scData.forEach(function(r9) {
+        var pk = (r9.Plot_ID || '').trim(), sp9 = (r9.Species_Code || '').trim();
+        if (!pk || !sp9) return;
+        var k9 = pk + '\x00' + sp9, rnd9 = String(r9.Check_Round || '');
+        if (!scLatest9[k9] || rnd9 >= scLatest9[k9].r) scLatest9[k9] = { r: rnd9, alive: parseFloat(r9.Trees_Alive) || 0, spCode: sp9 };
+    });
+    var totalAlive9 = 0, evalSpCodes9 = new Set();
+    Object.keys(scLatest9).forEach(function(k9) { totalAlive9 += scLatest9[k9].alive; evalSpCodes9.add(scLatest9[k9].spCode); });
+    var evalSpNames9 = new Set();
+    evalSpCodes9.forEach(function(code) {
+        evalSpNames9.add(code);
+        var sp = speciesMap[code];
+        if (sp) { if (sp.vi) evalSpNames9.add(sp.vi.trim()); if (sp.en) evalSpNames9.add(sp.en.trim()); }
+    });
+    var fids9 = new Set(f.map(function(ff) { return ff.Farmer_ID; }));
+    var totalPlanted9 = 0;
+    (rawData.supported || []).forEach(function(s9) {
+        if (!fids9.has(s9.Farmer_ID)) return;
+        if (evalSpNames9.has((s9.Species_Name || '').trim())) totalPlanted9 += parseFloat(s9.Quantity) || 0;
+    });
+    var survRate = totalPlanted9 > 0 ? (totalAlive9 / totalPlanted9 * 100).toFixed(2) + '%' : '0.00%';
     $('#kpi9').text(survRate);
+    $('#kpi9').attr('title', Math.round(totalAlive9).toLocaleString() + ' / ' + Math.round(totalPlanted9).toLocaleString());
     // Store for chart use
     window._suppTreeRecs = treeRecs;
     window._survivalCheckData = scData;
@@ -6720,61 +6743,83 @@ function showKpiDrilldown(kpiType) {
         return;
     }
 
-    // --- Special: Survival Rate — Groups with survival bars, sorted desc ---
+    // --- Special: Survival Rate — Groups using survival_check.Trees_Alive ---
     if (kpiType === 'survivalRate') {
-        var suppAll = rawData.supported || [];
-        var fids = new Set(farmers.map(function (ff) { return ff.Farmer_ID; }));
-        var treeRecsS = suppAll.filter(function (s) {
-            return fids.has(s.Farmer_ID) && (s.Unit || '').toLowerCase().indexOf('tree') >= 0;
+        var scSR = filteredData.survival_check || [];
+        var plotFarmerMapSR = {};
+        (filteredData.plots || []).forEach(function(p) { plotFarmerMapSR[String(p.Plot_Id || '')] = String(p.Farmer_ID || ''); });
+        var fGrpMapSR = {};
+        farmers.forEach(function(ff) { fGrpMapSR[ff.Farmer_ID] = ff.Farmer_Group_Name || 'N/A'; });
+        // Latest Trees_Alive per (Plot_ID, Species_Code)
+        var scLatestSR = {};
+        scSR.forEach(function(r) {
+            var pk = (r.Plot_ID || '').trim(), sp2 = (r.Species_Code || '').trim();
+            if (!pk || !sp2) return;
+            var k2 = pk + '\x00' + sp2, rnd2 = String(r.Check_Round || '');
+            if (!scLatestSR[k2] || rnd2 >= scLatestSR[k2].r)
+                scLatestSR[k2] = { r: rnd2, alive: parseFloat(r.Trees_Alive) || 0, plotId: pk, spCode: sp2 };
         });
-        // Group by farmer group
-        var grpSurv = {};
-        treeRecsS.forEach(function (s) {
-            var fid = s.Farmer_ID;
-            var ff = farmerMap[fid] || {};
-            var g = ff.Farmer_Group_Name || 'N/A';
-            if (!grpSurv[g]) grpSurv[g] = { planted: 0, alive: 0, evalQty: 0 };
-            grpSurv[g].planted += parseFloat(s.Quantity) || 0;
-            var aVal = s.A_live;
-            if (aVal !== null && aVal !== '' && aVal !== undefined && parseFloat(aVal) > 0) {
-                grpSurv[g].alive += parseFloat(aVal) || 0;
-                grpSurv[g].evalQty += parseFloat(s.Quantity) || 0;
-            }
+        // Alive per group
+        var grpStatsSR = {};
+        farmers.forEach(function(ff) { var g = ff.Farmer_Group_Name || 'N/A'; if (!grpStatsSR[g]) grpStatsSR[g] = { alive: 0, planted: 0 }; });
+        Object.keys(scLatestSR).forEach(function(k2) {
+            var rec = scLatestSR[k2];
+            var fid = plotFarmerMapSR[rec.plotId] || '';
+            var g = fGrpMapSR[fid];
+            if (g && grpStatsSR[g]) grpStatsSR[g].alive += rec.alive;
         });
-        var sKeys = Object.keys(grpSurv);
-        sKeys.sort(function (a, b) {
-            var ra = grpSurv[a].evalQty > 0 ? grpSurv[a].alive / grpSurv[a].evalQty : -1;
-            var rb = grpSurv[b].evalQty > 0 ? grpSurv[b].alive / grpSurv[b].evalQty : -1;
+        // Evaluated species names (to filter support planted qty)
+        var evalSpCodesSR = new Set(Object.keys(scLatestSR).map(function(k2) { return k2.split('\x00')[1]; }));
+        var evalSpNamesSR = new Set();
+        evalSpCodesSR.forEach(function(code) {
+            evalSpNamesSR.add(code);
+            var sp = speciesMap[code];
+            if (sp) { if (sp.vi) evalSpNamesSR.add(sp.vi.trim()); if (sp.en) evalSpNamesSR.add(sp.en.trim()); }
+        });
+        // Planted per group (support, evaluated species only)
+        var fidsSR = new Set(farmers.map(function(ff) { return ff.Farmer_ID; }));
+        (rawData.supported || []).forEach(function(s) {
+            if (!fidsSR.has(s.Farmer_ID)) return;
+            if (!evalSpNamesSR.has((s.Species_Name || '').trim())) return;
+            var g = fGrpMapSR[s.Farmer_ID] || 'N/A';
+            if (!grpStatsSR[g]) grpStatsSR[g] = { alive: 0, planted: 0 };
+            grpStatsSR[g].planted += parseFloat(s.Quantity) || 0;
+        });
+        var sKeys = Object.keys(grpStatsSR).filter(function(g) { return grpStatsSR[g].planted > 0 || grpStatsSR[g].alive > 0; });
+        sKeys.sort(function(a, b) {
+            var ra = grpStatsSR[a].planted > 0 ? grpStatsSR[a].alive / grpStatsSR[a].planted : -1;
+            var rb = grpStatsSR[b].planted > 0 ? grpStatsSR[b].alive / grpStatsSR[b].planted : -1;
             return rb - ra;
         });
-        var totalAliveS = sKeys.reduce(function (s, g) { return s + grpSurv[g].alive; }, 0);
-        var totalEvalS = sKeys.reduce(function (s, g) { return s + grpSurv[g].evalQty; }, 0);
-        var overallSurv = totalEvalS > 0 ? (totalAliveS / totalEvalS * 100).toFixed(1) : 'N/A';
-        var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'Tổng tỷ lệ sống: ' : 'Overall survival: ') + '<strong>' + overallSurv + '%</strong></p>';
+        var totalAliveSR = sKeys.reduce(function(s, g) { return s + grpStatsSR[g].alive; }, 0);
+        var totalPlantedSR = sKeys.reduce(function(s, g) { return s + grpStatsSR[g].planted; }, 0);
+        var overallSurv = totalPlantedSR > 0 ? (totalAliveSR / totalPlantedSR * 100).toFixed(1) : 'N/A';
+        var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'Tổng tỷ lệ sống: ' : 'Overall survival: ') + '<strong>' + overallSurv + '%</strong>';
+        html += ' &nbsp;|&nbsp; ' + Math.round(totalAliveSR).toLocaleString() + '/' + Math.round(totalPlantedSR).toLocaleString() + '</p>';
         html += '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
         html += '<thead class="table-custom-header"><tr><th>#</th>';
         html += '<th>' + (isVi ? 'Nhóm hộ' : 'Group') + '</th>';
-        html += '<th>' + (isVi ? 'Trồng' : 'Planted') + '</th>';
-        html += '<th>' + (isVi ? 'Sống' : 'Alive') + '</th>';
+        html += '<th>' + (isVi ? 'Trồng (đã ĐG)' : 'Planted (eval)') + '</th>';
+        html += '<th>' + (isVi ? 'Còn sống' : 'Alive') + '</th>';
         html += '<th>' + (isVi ? 'Tỷ lệ' : 'Rate') + '</th>';
         html += '<th style="min-width:120px"></th>';
         html += '</tr></thead><tbody>';
-        sKeys.forEach(function (g, i) {
-            var st = grpSurv[g];
-            var rate = st.evalQty > 0 ? (st.alive / st.evalQty * 100) : 0;
-            var rateStr = st.evalQty > 0 ? rate.toFixed(1) + '%' : (isVi ? 'Chưa ĐG' : 'N/A');
+        sKeys.forEach(function(g, i) {
+            var st = grpStatsSR[g];
+            var rate = st.planted > 0 ? (st.alive / st.planted * 100) : 0;
+            var rateStr = st.planted > 0 ? rate.toFixed(1) + '%' : (isVi ? 'Chưa ĐG' : 'N/A');
             var gLabel = adminMap[g] ? (isVi ? adminMap[g].vi : adminMap[g].en) || g : g;
             var barClass = rate >= 80 ? '' : (rate >= 50 ? ' warning' : ' danger');
-            html += '<tr class="kpi-drill-row" onclick="kpiDrillSurvivalGroup(\'' + escapeHtml(g) + '\')">';
+            html += '<tr class="kpi-drill-row" onclick="kpiDrillSurvivalGroup(\'' + g.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\')">';
             html += '<td>' + (i + 1) + '</td>';
             html += '<td>' + escapeHtml(gLabel) + '</td>';
-            html += '<td>' + st.planted.toLocaleString() + '</td>';
-            html += '<td>' + (st.alive > 0 ? st.alive.toLocaleString() : '-') + '</td>';
+            html += '<td>' + (st.planted > 0 ? Math.round(st.planted).toLocaleString() : '-') + '</td>';
+            html += '<td>' + (st.alive > 0 ? Math.round(st.alive).toLocaleString() : '-') + '</td>';
             html += '<td>' + rateStr + '</td>';
-            html += '<td><div class="kpi-drill-bar"><div class="kpi-drill-bar-fill' + barClass + '" style="width:' + (st.evalQty > 0 ? rate : 0) + '%"></div></div></td>';
+            html += '<td><div class="kpi-drill-bar"><div class="kpi-drill-bar-fill' + barClass + '" style="width:' + (st.planted > 0 ? rate : 0) + '%"></div></div></td>';
             html += '</tr>';
         });
-        if (sKeys.length === 0) html += '<tr><td colspan="6" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
+        if (sKeys.length === 0) html += '<tr><td colspan="6" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu kiểm tra sống' : 'No survival check data') + '</td></tr>';
         html += '</tbody></table></div>';
         $('#farmerDetailTitle').text(title + ' (' + overallSurv + '%)');
         $('#detailContent').html(html);
@@ -7356,58 +7401,89 @@ function kpiDrillCompletionYearGroup(yearCode, groupCode) {
     kpiDrillPush(title, html);
 }
 
-// Survival Rate → Group → Farmer list with tree data
+// Survival Rate → Group → Farmers with survival_check data per species
 function kpiDrillSurvivalGroup(groupCode) {
     var isVi = currentLang === 'vi';
-    var farmers = filteredData.farmers || [];
-    var farmerMap = {};
-    (rawData.farmers || []).forEach(function (f) { farmerMap[f.Farmer_ID] = f; });
-    var fids = new Set(farmers.filter(function (f) { return (f.Farmer_Group_Name || 'N/A') === groupCode; }).map(function (f) { return f.Farmer_ID; }));
-    var suppAll = rawData.supported || [];
-    var treeRecs = suppAll.filter(function (s) {
-        return fids.has(s.Farmer_ID) && (s.Unit || '').toLowerCase().indexOf('tree') >= 0;
+    var farmersInGroup = (filteredData.farmers || []).filter(function(ff) { return (ff.Farmer_Group_Name || 'N/A') === groupCode; });
+    var fidSet = new Set(farmersInGroup.map(function(ff) { return ff.Farmer_ID; }));
+    var plotFarmerMapSG = {};
+    (filteredData.plots || []).forEach(function(p) { plotFarmerMapSG[String(p.Plot_Id || '')] = String(p.Farmer_ID || ''); });
+    // SC records for plots belonging to this group
+    var plotIdsInGroup = new Set((filteredData.plots || []).filter(function(p) { return fidSet.has(p.Farmer_ID); }).map(function(p) { return String(p.Plot_Id || ''); }));
+    var scSG = (filteredData.survival_check || []).filter(function(r) { return plotIdsInGroup.has((r.Plot_ID || '').trim()); });
+    // Latest Trees_Alive per (Plot_ID, Species_Code)
+    var scLatestSG = {};
+    scSG.forEach(function(r) {
+        var pk = (r.Plot_ID || '').trim(), spCode = (r.Species_Code || '').trim();
+        if (!pk || !spCode) return;
+        var key = pk + '\x00' + spCode, rnd = String(r.Check_Round || '');
+        if (!scLatestSG[key] || rnd >= scLatestSG[key].r)
+            scLatestSG[key] = { r: rnd, alive: parseFloat(r.Trees_Alive) || 0, plotId: pk, spCode: spCode };
     });
-    // Group by farmer → species
-    var farmerSpecies = {};
-    treeRecs.forEach(function (s) {
-        var fid = s.Farmer_ID;
-        var sp = s.Species_Name || 'Unknown';
-        var key = fid + '|' + sp;
-        if (!farmerSpecies[key]) farmerSpecies[key] = { fid: fid, species: sp, name: (farmerMap[fid] || {}).Full_Name || fid, planted: 0, alive: 0, evalQty: 0 };
-        farmerSpecies[key].planted += parseFloat(s.Quantity) || 0;
-        var aVal = s.A_live;
-        if (aVal !== null && aVal !== '' && aVal !== undefined && parseFloat(aVal) > 0) {
-            farmerSpecies[key].alive += parseFloat(aVal) || 0;
-            farmerSpecies[key].evalQty += parseFloat(s.Quantity) || 0;
-        }
+    // Alive per (Farmer_ID, Species_Code)
+    var farmerSpAlive = {};
+    Object.keys(scLatestSG).forEach(function(key) {
+        var rec = scLatestSG[key];
+        var fid = plotFarmerMapSG[rec.plotId] || '';
+        if (!fid) return;
+        var fk = fid + '|' + rec.spCode;
+        farmerSpAlive[fk] = (farmerSpAlive[fk] || 0) + rec.alive;
     });
-    var rows = Object.keys(farmerSpecies).map(function (k) { return farmerSpecies[k]; });
-    rows.sort(function (a, b) {
-        var cmp = a.name.localeCompare(b.name);
-        if (cmp !== 0) return cmp;
-        return (getSpeciesName(a.species)).localeCompare(getSpeciesName(b.species));
+    // Species code → names (for support matching)
+    var evalSpCodesSG = new Set(Object.keys(scLatestSG).map(function(k) { return k.split('\x00')[1]; }));
+    var spNameToCodeSG = {};
+    evalSpCodesSG.forEach(function(code) {
+        spNameToCodeSG[code] = code;
+        var sp = speciesMap[code];
+        if (sp) { if (sp.vi) spNameToCodeSG[sp.vi.trim()] = code; if (sp.en) spNameToCodeSG[sp.en.trim()] = code; }
     });
+    // Planted per (Farmer_ID, Species_Code) from support
+    var farmerSpPlanted = {};
+    (rawData.supported || []).forEach(function(s) {
+        if (!fidSet.has(s.Farmer_ID)) return;
+        var spName = (s.Species_Name || '').trim();
+        var code = spNameToCodeSG[spName];
+        if (!code) return;
+        var fk = s.Farmer_ID + '|' + code;
+        farmerSpPlanted[fk] = (farmerSpPlanted[fk] || 0) + (parseFloat(s.Quantity) || 0);
+    });
+    // Build rows per farmer × evaluated species
+    var rows = [];
+    farmersInGroup.forEach(function(ff) {
+        var fid = ff.Farmer_ID;
+        var spCodesFF = new Set();
+        Object.keys(farmerSpAlive).forEach(function(fk) { if (fk.startsWith(fid + '|')) spCodesFF.add(fk.split('|')[1]); });
+        Object.keys(farmerSpPlanted).forEach(function(fk) { if (fk.startsWith(fid + '|')) spCodesFF.add(fk.split('|')[1]); });
+        if (!spCodesFF.size) return;
+        spCodesFF.forEach(function(code) {
+            rows.push({ fid: fid, name: ff.Full_Name || fid, spCode: code, alive: farmerSpAlive[fid + '|' + code] || 0, planted: farmerSpPlanted[fid + '|' + code] || 0 });
+        });
+    });
+    rows.sort(function(a, b) { var c = a.name.localeCompare(b.name); return c !== 0 ? c : getSpeciesName(a.spCode).localeCompare(getSpeciesName(b.spCode)); });
+    var totalAlive = rows.reduce(function(s, r) { return s + r.alive; }, 0);
+    var totalPlanted = rows.reduce(function(s, r) { return s + r.planted; }, 0);
+    var overallRate = totalPlanted > 0 ? (totalAlive / totalPlanted * 100).toFixed(1) + '%' : 'N/A';
     var gLabel = adminMap[groupCode] ? (isVi ? adminMap[groupCode].vi : adminMap[groupCode].en) || groupCode : groupCode;
     var title = gLabel + ' — ' + (isVi ? 'Tỷ lệ sống' : 'Survival');
-    var html = '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
+    var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'Tổng: ' : 'Total: ') + '<strong>' + Math.round(totalAlive).toLocaleString() + '/' + Math.round(totalPlanted).toLocaleString() + ' (' + overallRate + ')</strong></p>';
+    html += '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
     html += '<thead class="table-custom-header"><tr><th>#</th>';
     html += '<th>' + (isVi ? 'Hộ dân' : 'Farmer') + '</th>';
     html += '<th>' + (isVi ? 'Loài cây' : 'Species') + '</th>';
     html += '<th>' + (isVi ? 'Trồng' : 'Planted') + '</th>';
-    html += '<th>' + (isVi ? 'Sống' : 'Alive') + '</th>';
+    html += '<th>' + (isVi ? 'Còn sống' : 'Alive') + '</th>';
     html += '<th>' + (isVi ? 'Tỷ lệ' : 'Rate') + '</th>';
     html += '</tr></thead><tbody>';
     var prevFid = '';
-    rows.forEach(function (d, i) {
-        var rate = d.evalQty > 0 ? (d.alive / d.evalQty * 100).toFixed(1) + '%' : (isVi ? 'Chưa ĐG' : 'N/A');
-        var showName = d.fid !== prevFid;
-        prevFid = d.fid;
+    rows.forEach(function(d, i) {
+        var rate = d.planted > 0 ? (d.alive / d.planted * 100).toFixed(1) + '%' : (isVi ? 'Chưa ĐG' : 'N/A');
+        var showName = d.fid !== prevFid; prevFid = d.fid;
         html += '<tr class="kpi-drill-row" onclick="showFarmerDetails(\'' + escapeHtml(d.fid) + '\')">';
         html += '<td>' + (i + 1) + '</td>';
         html += '<td>' + (showName ? escapeHtml(d.name) : '<span class="text-muted">↳</span>') + '</td>';
-        html += '<td><small>' + escapeHtml(getSpeciesName(d.species)) + '</small></td>';
-        html += '<td>' + d.planted.toLocaleString() + '</td>';
-        html += '<td>' + (d.alive > 0 ? d.alive.toLocaleString() : '-') + '</td>';
+        html += '<td><small>' + escapeHtml(getSpeciesName(d.spCode)) + '</small></td>';
+        html += '<td>' + (d.planted > 0 ? Math.round(d.planted).toLocaleString() : '-') + '</td>';
+        html += '<td>' + (d.alive > 0 ? Math.round(d.alive).toLocaleString() : '-') + '</td>';
         html += '<td>' + rate + '</td>';
         html += '</tr>';
     });
