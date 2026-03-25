@@ -11,7 +11,7 @@ const TABLE_MAP = {
     'Admin':                { table: 'admin',                idCol: 'Adm_ID' },
     'Training':             { table: 'training_list',        idCol: 'Train_ID' }
 };
-const CACHE_KEY = "PFFP_DATA_CACHE_v4";
+const CACHE_KEY = "PFFP_DATA_CACHE_v11";
 const CACHE_TTL = 60 * 60 * 1000; // 1 giờ (milliseconds)
 // ==========================================================
 // GLOBAL STATE
@@ -1110,7 +1110,7 @@ function initFilters() {
         populateManageByTree();
     } else {
         // Fallback: flat list from Farmers.Manage_by using getManageByGroup
-        let mS = new Set(rawData.farmers.map(d => getManageByGroup(d['Manage by'])));
+        let mS = new Set(rawData.farmers.map(d => String(d['Manage by'] || '').trim()).filter(Boolean));
         let mO = Array.from(mS).sort().map(m => ({ value: m, label_vi: m, label_en: m }));
         populateMultiSelect('manageBy', mO, true);
     }
@@ -1132,49 +1132,91 @@ function populateMultiSelect(g, d, c = false) { const cn = $(`#${g}ListContainer
 function getSelectedValues(g) { if ($(`.check-all[data-group="${g}"]`).is(':checked')) return 'All'; let s = []; $(`.check-item[data-group="${g}"]:checked`).each(function () { s.push($(this).val()); }); return s; }
 function updateDropdownLabel(g) { $(`.check-item[data-group="${g}"]`).next('label').each(function () { $(this).text(currentLang === 'vi' ? $(this).data('vi') : $(this).data('en')); }); const t = $(`#btnFilter${g.charAt(0).toUpperCase() + g.slice(1)}Text`); if ($(`.check-all[data-group="${g}"]`).is(':checked')) { t.text(translations[currentLang].allOption); } else { let s = getSelectedValues(g); if (s.length === 0) t.text("---"); else if (s.length <= 2) { let ts = []; $(`.check-item[data-group="${g}"]:checked`).each(function () { ts.push($(this).next('label').text()); }); t.text(ts.join(", ")); } else t.text(`${s.length} ${translations[currentLang].selected}`); } }
 
-// --- ManageBy Tree Filter (Program → Year with counts) ---
+// Key constants for ManageBy intersection group
+var INTERSECT_KEY = '__INTERSECT_SLO_PFFP__';
+var SLO_FAMILY = ['SLO', 'SLO1'];
+var PFFP_FAMILY = ['PFFP'];
+
+// --- ManageBy Tree Filter (Program x Year with counts + SLO & PFFP intersection) ---
 function populateManageByTree() {
     var fyData = rawData.farmer_year || [];
     var container = $('#manageByListContainer').empty();
 
-    // Build tree: programLabel → { years: { year: Set<Farmer_ID> }, allFarmers: Set<Farmer_ID> }
+    // Step 1: Individual program groups + farmer-program map
     var tree = {};
+    var farmerProgMap = {};
+
     fyData.forEach(function (fy) {
-        var prog = fy['Program'] || '';
-        var label = getManageByGroup(prog);
-        var year = fy['Year'] || '';
-        var fid = fy['Farmer_ID'] || '';
-        if (!tree[label]) tree[label] = { programs: new Set(), years: {}, allFarmers: new Set() };
-        tree[label].programs.add(prog);
-        if (!tree[label].years[year]) tree[label].years[year] = new Set();
-        tree[label].years[year].add(fid);
-        tree[label].allFarmers.add(fid);
+        var prog = String(fy['Program'] || fy['program'] || '').trim();
+        if (!prog) return;
+        var yearVal = getFarmerYearValue(fy);
+        var year = yearVal ? String(yearVal).trim().toUpperCase() : '';
+        var fid = String(fy['Farmer_ID'] || fy['farmer_id'] || '').trim();
+        if (!fid) return;
+
+        if (!tree[prog]) tree[prog] = { years: {}, allFarmers: new Set() };
+        if (!tree[prog].years[year]) tree[prog].years[year] = new Set();
+        tree[prog].years[year].add(fid);
+        tree[prog].allFarmers.add(fid);
+
+        if (!farmerProgMap[fid]) farmerProgMap[fid] = new Set();
+        farmerProgMap[fid].add(prog);
     });
 
-    // yearCodeToLabel for tree display
-    var ycl = function(y) { var m = String(y).match(/^(\d{2})Y$/); return m ? '20' + m[1] : y; };
-    var labels = Object.keys(tree).sort();
+    // Step 2: Compute intersection farmers (have BOTH SLO/SLO1 AND PFFP records)
+    var intersectFIDs = new Set();
+    Object.keys(farmerProgMap).forEach(function(fid) {
+        var progs = Array.from(farmerProgMap[fid]);
+        var hasSLO  = progs.some(function(p) { return SLO_FAMILY.indexOf(p) >= 0; });
+        var hasPFFP = progs.some(function(p) { return PFFP_FAMILY.indexOf(p) >= 0; });
+        if (hasSLO && hasPFFP) intersectFIDs.add(fid);
+    });
+
+    // Step 3: Build intersection group node
+    if (intersectFIDs.size > 0) {
+        var intersectYears = {};
+        fyData.forEach(function(fy) {
+            var fid = String(fy['Farmer_ID'] || fy['farmer_id'] || '').trim();
+            if (!intersectFIDs.has(fid)) return;
+            var yv = getFarmerYearValue(fy);
+            var yr = yv ? String(yv).trim().toUpperCase() : '';
+            if (!yr) return;
+            if (!intersectYears[yr]) intersectYears[yr] = new Set();
+            intersectYears[yr].add(fid);
+        });
+        tree[INTERSECT_KEY] = { years: intersectYears, allFarmers: intersectFIDs, isIntersect: true };
+    }
+
+    // Step 4: Render tree
+    var ycl = function(y) {
+        var s = String(y);
+        return (s.length === 3 && s[2].toUpperCase() === 'Y') ? '20' + s.slice(0, 2) : s;
+    };
+    var labels = Object.keys(tree).filter(function(k) { return k !== INTERSECT_KEY; }).sort();
+    if (tree[INTERSECT_KEY]) labels.push(INTERSECT_KEY);
+
     labels.forEach(function (label) {
         var node = tree[label];
-        var safeId = label.replace(/[^a-zA-Z0-9]/g, '_');
-        var progValues = Array.from(node.programs).join(',');
+        var isIntersect = label === INTERSECT_KEY;
+        var displayLabel = isIntersect ? '\uD83D\uDD00 SLO &amp; PFFP' : label;
+        var displayLabelPlain = isIntersect ? 'SLO & PFFP' : label;
+        var safeId = isIntersect ? 'INTERSECT' : label.replace(/[^a-zA-Z0-9]/g, '_');
+        var checkVal = isIntersect ? INTERSECT_KEY : label;
 
-        // Parent group - count unique farmers
-        var html = '<li class="tree-group" id="treeGroup_' + safeId + '">';
+        var html = '<li class="tree-group' + (isIntersect ? ' tree-group-intersect' : '') + '" id="treeGroup_' + safeId + '">';
         html += '<div class="tree-group-header" onclick="toggleTreeGroup(\'' + safeId + '\')">';
         html += '<span class="tree-toggle">&#9654;</span>';
-        html += '<div class="form-check mb-0 ms-1"><input class="form-check-input check-item" type="checkbox" value="' + progValues + '" data-group="manageBy" data-tree-parent="1" id="manageBy_' + safeId + '" checked>';
-        html += '<label class="form-check-label" for="manageBy_' + safeId + '" data-vi="' + label + '" data-en="' + label + '">' + label + '</label></div>';
+        html += '<div class="form-check mb-0 ms-1"><input class="form-check-input check-item" type="checkbox" value="' + checkVal + '" data-group="manageBy" data-tree-parent="1" id="manageBy_' + safeId + '" checked>';
+        html += '<label class="form-check-label" for="manageBy_' + safeId + '" data-vi="' + displayLabelPlain + '" data-en="' + displayLabelPlain + '">' + displayLabel + '</label></div>';
         html += '<span class="tree-badge">' + node.allFarmers.size + '</span>';
         html += '</div>';
-
-        // Children (years) - count unique farmers per year
         html += '<ul class="tree-children list-unstyled">';
         var years = Object.keys(node.years).sort();
         years.forEach(function (year) {
             var yearSafeId = safeId + '_' + year.replace(/[^a-zA-Z0-9]/g, '_');
+            var childVal = checkVal + '|' + year;
             html += '<li class="tree-child">';
-            html += '<div class="form-check mb-0"><input class="form-check-input check-item tree-year-check" type="checkbox" value="' + progValues + '|' + year + '" data-group="manageBy" data-tree-child="' + safeId + '" data-year="' + year + '" id="manageBy_' + yearSafeId + '" checked>';
+            html += '<div class="form-check mb-0"><input class="form-check-input check-item tree-year-check" type="checkbox" value="' + childVal + '" data-group="manageBy" data-tree-child="' + safeId + '" data-year="' + year + '" id="manageBy_' + yearSafeId + '" checked>';
             html += '<label class="form-check-label" for="manageBy_' + yearSafeId + '">' + ycl(year) + '</label></div>';
             html += '<span class="tree-badge">' + node.years[year].size + '</span>';
             html += '</li>';
@@ -1183,10 +1225,10 @@ function populateManageByTree() {
         container.append(html);
     });
 
-    // Open all tree groups by default
     container.find('.tree-group').addClass('open').find('.tree-toggle').html('&#9660;');
     updateDropdownLabel('manageBy');
 }
+
 
 function toggleTreeGroup(safeId) {
     $('#treeGroup_' + safeId).toggleClass('open');
@@ -1309,14 +1351,47 @@ function applyFilter() {
                 let matchedFY = (rawData.farmer_year || []).filter(fy => {
                     if (fY !== 'All' && !fY.includes(fy['Year'])) return false;
                     if (treeSel.mode === 'filtered') {
-                        var prog = fy['Program'] || '';
+                        var prog = String(fy['Program'] || '').trim();
                         var year = fy['Year'] || '';
-                        var matched = treeSel.pairs.some(function (p) { return p.program === prog && p.year === year; });
+                        var matched = treeSel.pairs.some(function (p) {
+                            if (p.program === INTERSECT_KEY) { return p.year === year; } // intersect group: year only
+                            return p.program === prog && p.year === year;
+                        });
                         if (!matched) return false;
                     }
                     return true;
                 });
                 fyFilterFIDs = new Set(matchedFY.map(fy => fy['Farmer_ID']));
+
+                // Post-process: if INTERSECT_KEY selected, restrict to farmers with BOTH SLO/SLO1 AND PFFP
+                var hasIP = treeSel.mode === 'filtered' && treeSel.pairs.some(function(p) { return p.program === INTERSECT_KEY; });
+                var hasNIP = treeSel.mode === 'filtered' && treeSel.pairs.some(function(p) { return p.program !== INTERSECT_KEY; });
+                if (hasIP && fyFilterFIDs.size > 0) {
+                    var _ipm = {};
+                    (rawData.farmer_year || []).forEach(function(r) {
+                        var f2 = String(r['Farmer_ID'] || '').trim();
+                        var p2 = String(r['Program'] || '').trim();
+                        if (f2 && p2) { if (!_ipm[f2]) _ipm[f2] = new Set(); _ipm[f2].add(p2); }
+                    });
+                    var iOnly = new Set();
+                    fyFilterFIDs.forEach(function(fid) {
+                        var pp = Array.from(_ipm[fid] || new Set());
+                        if (pp.some(function(p){return SLO_FAMILY.indexOf(p)>=0;}) &&
+                            pp.some(function(p){return PFFP_FAMILY.indexOf(p)>=0;})) iOnly.add(fid);
+                    });
+                    if (!hasNIP) {
+                        fyFilterFIDs = iOnly;
+                    } else {
+                        var niFIDs = new Set();
+                        (rawData.farmer_year || []).forEach(function(r) {
+                            var f3 = String(r['Farmer_ID'] || '').trim();
+                            var p3 = String(r['Program'] || '').trim();
+                            var y3 = String(r['Year'] || '').trim();
+                            if (treeSel.pairs.some(function(p){return p.program !== INTERSECT_KEY && p.program===p3 && p.year===y3;})) niFIDs.add(f3);
+                        });
+                        fyFilterFIDs = new Set([...iOnly, ...niFIDs]);
+                    }
+                }
             }
         }
         // Fallback ManageBy when farmer_year empty: use getManageByGroup on Farmers
@@ -1357,7 +1432,7 @@ function applyFilter() {
             if (fE !== 'All' && !fE.includes(f['Ethnicity'])) return false;
             // ManageBy fallback: use getManageByGroup when farmer_year empty
             if (fManFallback && fManFallback !== 'All') {
-                let fManVal = getManageByGroup(f['Manage by']);
+                let fManVal = String(f['Manage by'] || '').trim();
                 if (!fManFallback.includes(fManVal)) return false;
             }
 
