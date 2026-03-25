@@ -1,5 +1,6 @@
 // --- CẤU HÌNH KẾT NỐI POCKETBASE ---
 // supabaseClient is provided by pb.js (Supabase-compatible wrapper over PocketBase)
+console.log('[PFFP] script.js v10 loaded - farmer_year filter active');
 const TABLE_MAP = {
     'Farmers':              { table: 'farmers',              idCol: 'Farmer_ID' },
     'Plots':                { table: 'plots',                idCol: 'Plot_Id' },
@@ -1189,8 +1190,11 @@ function populateManageByTree() {
     labels.forEach(function (label) {
         var node = tree[label];
         var isIntersect = label === INTERSECT_KEY;
-        var displayLabel = isIntersect ? '\uD83D\uDD00 SLO &amp; PFFP' : label;
-        var displayLabelPlain = isIntersect ? 'SLO & PFFP' : label;
+        var _iVI = ((dropMap['SLO'] && dropMap['SLO'].vi) || 'Slow Forest') + ' & ' + ((dropMap['PFFP'] && dropMap['PFFP'].vi) || 'PFFP');
+        var _iEN = ((dropMap['SLO'] && dropMap['SLO'].en) || 'Slow Forest') + ' & ' + ((dropMap['PFFP'] && dropMap['PFFP'].en) || 'PFFP');
+        var progVI = isIntersect ? _iVI : ((dropMap[label] && dropMap[label].vi) || label);
+        var progEN = isIntersect ? _iEN : ((dropMap[label] && dropMap[label].en) || label);
+        var displayLabel = isIntersect ? ('\uD83D\uDD00 ' + (currentLang === 'vi' ? _iVI : _iEN)) : (currentLang === 'vi' ? progVI : progEN);
         var safeId = isIntersect ? 'INTERSECT' : label.replace(/[^a-zA-Z0-9]/g, '_');
         var checkVal = isIntersect ? INTERSECT_KEY : label;
 
@@ -1198,7 +1202,7 @@ function populateManageByTree() {
         html += '<div class="tree-group-header" onclick="toggleTreeGroup(\'' + safeId + '\')">';
         html += '<span class="tree-toggle">&#9654;</span>';
         html += '<div class="form-check mb-0 ms-1"><input class="form-check-input check-item" type="checkbox" value="' + checkVal + '" data-group="manageBy" data-tree-parent="1" id="manageBy_' + safeId + '" checked>';
-        html += '<label class="form-check-label" for="manageBy_' + safeId + '" data-vi="' + displayLabelPlain + '" data-en="' + displayLabelPlain + '">' + displayLabel + '</label></div>';
+        html += '<label class="form-check-label" for="manageBy_' + safeId + '" data-vi="' + progVI + '" data-en="' + progEN + '">' + displayLabel + '</label></div>';
         html += '<span class="tree-badge">' + node.allFarmers.size + '</span>';
         html += '</div>';
         html += '<ul class="tree-children list-unstyled">';

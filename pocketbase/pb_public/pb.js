@@ -480,12 +480,16 @@ var supabaseClient = {
                         return pbFetchAll(collection, _limit)
                             .then(function (items) {
                                 var converted = items.map(function (item) { return pbToSupa(supaTable, item); });
-                                resolve({ data: converted, error: null });
+                                var result = { data: converted, error: null };
+                                if (resolve) resolve(result);
+                                return result;
                             })
                             .catch(function (err) {
                                 console.error('PB select error [' + collection + ']:', err);
-                                if (reject) reject({ data: null, error: { message: String(err) } });
-                                else resolve({ data: null, error: { message: String(err) } });
+                                var errResult = { data: null, error: { message: String(err) } };
+                                if (reject) reject(errResult);
+                                else if (resolve) resolve(errResult);
+                                return errResult;
                             });
                     },
                     catch: function (fn) {

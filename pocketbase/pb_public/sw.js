@@ -5,7 +5,7 @@
  *   - PocketBase API calls: Network-First (fallback to IndexedDB in app code)
  */
 
-var CACHE_NAME = 'pffp-cache-v48';
+var CACHE_NAME = 'pffp-cache-v49';
 
 // Only precache critical LOCAL files (fast, always available)
 // CDN libraries will be cached on-demand when first requested
@@ -59,7 +59,7 @@ self.addEventListener('activate', function (event) {
     );
 });
 
-// Fetch: Cache-First for static, Network-First for API
+// Fetch: Network-First for HTML navigation, Cache-First for static assets
 self.addEventListener('fetch', function (event) {
     var url = event.request.url;
 
@@ -68,7 +68,23 @@ self.addEventListener('fetch', function (event) {
         return;
     }
 
-    // For everything else: Cache-First with network fallback
+    // Network-First for HTML navigation: always get fresh index.html from server
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).then(function (response) {
+                if (response && response.status === 200) {
+                    var clone = response.clone();
+                    caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, clone); });
+                }
+                return response;
+            }).catch(function () {
+                return caches.match('./index.html');
+            })
+        );
+        return;
+    }
+
+    // Cache-First for static assets (JS, CSS, images) with background update
     event.respondWith(
         caches.match(event.request).then(function (cached) {
             if (cached) {
@@ -77,9 +93,7 @@ self.addEventListener('fetch', function (event) {
             }
             return fetchAndCache(event.request);
         }).catch(function () {
-            if (event.request.mode === 'navigate') {
-                return caches.match('./index.html');
-            }
+            return caches.match('./index.html');
         })
     );
 });
