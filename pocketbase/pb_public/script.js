@@ -6575,7 +6575,7 @@ function showKpiDrilldown(kpiType) {
             if (!groupStats[g]) groupStats[g] = { total: 0, female: 0, male: 0 };
             groupStats[g].total++;
             var gd = (f.Gender || '').trim().toLowerCase();
-            if (gd === 'nữ' || gd === 'female' || gd === 'f') groupStats[g].female++;
+            if (gd === '0' || gd === 'nữ' || gd === 'female' || gd === 'f') groupStats[g].female++;
             else groupStats[g].male++;
         });
         var gKeys = Object.keys(groupStats);
@@ -7024,12 +7024,12 @@ function kpiDrillFemaleGroup(groupCode) {
     list.sort(function (a, b) {
         var ga = (a.Gender || '').trim().toLowerCase();
         var gb = (b.Gender || '').trim().toLowerCase();
-        var fa = (ga === 'nữ' || ga === 'female' || ga === 'f') ? 0 : 1;
-        var fb = (gb === 'nữ' || gb === 'female' || gb === 'f') ? 0 : 1;
+        var fa = (ga === '0' || ga === 'nữ' || ga === 'female' || ga === 'f') ? 0 : 1;
+        var fb = (gb === '0' || gb === 'nữ' || gb === 'female' || gb === 'f') ? 0 : 1;
         return fa - fb || (a.Full_Name || '').localeCompare(b.Full_Name || '');
     });
     var gLabel = adminMap[groupCode] ? (isVi ? adminMap[groupCode].vi : adminMap[groupCode].en) || groupCode : groupCode;
-    var femaleCount = list.filter(function (f) { var g = (f.Gender || '').trim().toLowerCase(); return g === 'nữ' || g === 'female' || g === 'f'; }).length;
+    var femaleCount = list.filter(function (f) { var g = (f.Gender || '').trim().toLowerCase(); return g === '0' || g === 'nữ' || g === 'female' || g === 'f'; }).length;
     var title = gLabel + ' (' + femaleCount + '/' + list.length + ')';
     var html = '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
     html += '<thead class="table-custom-header"><tr><th>#</th>';
@@ -7039,7 +7039,7 @@ function kpiDrillFemaleGroup(groupCode) {
     html += '</tr></thead><tbody>';
     list.forEach(function (f, i) {
         var g = (f.Gender || '').trim().toLowerCase();
-        var isFemale = g === 'nữ' || g === 'female' || g === 'f';
+        var isFemale = g === '0' || g === 'nữ' || g === 'female' || g === 'f';
         var vLabel = adminMap[f.Village_Name] ? (isVi ? adminMap[f.Village_Name].vi : adminMap[f.Village_Name].en) || f.Village_Name : (f.Village_Name || '');
         html += '<tr class="kpi-drill-row' + (isFemale ? ' table-success' : '') + '" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')">';
         html += '<td>' + (i + 1) + '</td>';
@@ -8340,7 +8340,7 @@ function buildDataContext() {
         groups[g].area += parseFloat(f.Total_Coffee_Area) || 0;
         if ((f.Activity || '').trim() === 'Done') groups[g].done++;
         var gen = (f.Gender || '').toLowerCase();
-        if (gen === 'nữ' || gen === 'female' || gen === 'f') groups[g].fem++;
+        if (gen === '0' || gen === 'nữ' || gen === 'female' || gen === 'f') groups[g].fem++;
     });
     var fgMap = {};
     fF.forEach(function (f) { fgMap[f.Farmer_ID] = f.Farmer_Group_Name || 'N/A'; });
@@ -8367,7 +8367,7 @@ function buildDataContext() {
 
     // Summary stats
     ctx += '== TỔNG QUAN (lọc: ' + fF.length + '/' + farmers.length + ' hộ) ==\n';
-    ctx += 'Hộ: ' + fF.length + ', Nữ: ' + fF.filter(function (f) { var g = (f.Gender || '').toLowerCase(); return g === 'nữ' || g === 'female'; }).length;
+    ctx += 'Hộ: ' + fF.length + ', Nữ: ' + fF.filter(function (f) { var g = (f.Gender || '').toLowerCase(); return g === '0' || g === 'nữ' || g === 'female'; }).length;
     ctx += ', Lô: ' + fP.length + ', DT: ' + totalArea.toFixed(2) + 'ha\n';
     ctx += 'Trồng: ' + totalPlanted + ', Chết: ' + totalDied + ', Sống: ' + sv + '%\n';
     ctx += 'Cherry: ' + totalCherry.toFixed(1) + 'T, CLC: ' + totalHQ.toFixed(1) + 'T, Thu nhập: ' + totalIncome.toLocaleString() + ' VND\n';
