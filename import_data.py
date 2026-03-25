@@ -15,88 +15,152 @@ EXCEL_FILE = r"c:\Users\User\OneDrive - Slow Forest\Apps\PFFP\Cloude_PFFP_16Feb2
 # Excel header → PB field name mapping (only for headers that differ)
 FIELD_MAP = {
     'Farmers': {
-        'Participation Year': 'Participation_Year',
-        'Year of support': 'Year_of_support',
-        'ID card': 'ID_card',
-        'Socioeconomic Status': 'Socioeconomic_Status',
-        'Household Circumstances': 'Household_Circumstances',
-        'Number of coffee farm plots': 'Number_of_coffee_farm_plots',
-        'Supported by': 'Supported_by',
-        'Manage by': 'Manage_by',
-        'Supported Types': 'Supported_Types',
-        'Number Farm registered for support from': 'Number_Farm_registered_for_support_from',
-        'Total Area registered': 'Total_Area_registered',
-        'Staff input': 'Staff_input',
+        'Participation Year': 'participation_year',
+        'Year of support': 'year_of_support',
+        'ID card': 'id_card',
+        'Socioeconomic Status': 'socioeconomic_status',
+        'Household Circumstances': 'household_circumstances',
+        'Number of coffee farm plots': 'number_of_coffee_farm_plots',
+        'Supported by': 'supported_by',
+        'Manage by': 'manage_by',
+        'Supported Types': 'supported_types',
+        'Number Farm registered for support from': 'number_farm_registered_for_support_from',
+        'Total Area registered': 'total_area_registered',
+        'Staff input': 'staff_input',
+        # Add mappings for CamelCase headers if any
+        'Farmer_ID': 'farmer_id',
+        'Full_Name': 'full_name',
+        'Year_Of_Birth': 'year_of_birth',
+        'Gender': 'gender',
+        'Phone_Number': 'phone_number',
+        'Farmer_Group_Name': 'farmer_group_name',
+        'Cooperative_Name': 'cooperative_name',
+        'Village_Name': 'village_name',
+        'Commune_Name': 'commune_name',
+        'Address': 'address',
+        'Ethnicity': 'ethnicity',
+        'Num_Household_Members': 'num_household_members',
+        'Num_Working_Members': 'num_working_members',
+        'Total_Coffee_Area': 'total_coffee_area',
+        'Status': 'status',
+        'Activity': 'activity',
     },
     'Plots': {
-        'Area (ha)': 'Area_ha',
-        'Land use rights certificate?': 'Land_use_rights_certificate',
-        'Place name': 'Place_name',
-        'Map Sheet': 'Map_Sheet',
-        'Sub-mapsheet': 'Sub_mapsheet',
-        'Receive seedlings from': 'Receive_seedlings_from',
-        'Farm registered for support from': 'Farm_registered_for_support_from',
-        'Notes for details (Optional)': 'Notes_for_details',
-        'Number of shade trees': 'Number_of_shade_trees',
-        'Number of shade tree species': 'Number_of_shade_tree_species',
+        'Plot_Id': 'plot_id',
+        'Farmer_ID': 'farmer_id',
+        'Plot_Name': 'plot_name',
+        'Area (ha)': 'area_ha',
+        'Location': 'location',
+        'Land use rights certificate?': 'land_use_rights_certificate',
+        'Border_Natural_Forest': 'border_natural_forest',
+        'Place name': 'place_name',
+        'Num_Shade_Trees_Before': 'num_shade_trees_before',
+        'Name_Shade_Trees_Before': 'name_shade_trees_before',
+        'Num_Coffee_Trees': 'num_coffee_trees',
+        'Coffee_Planted_Year': 'coffee_planted_year',
+        'Notes for details (Optional)': 'notes_for_details',
+        'Map Sheet': 'map_sheet',
+        'Sub-mapsheet': 'sub_mapsheet',
+        'Receive seedlings from': 'receive_seedlings_from',
+        'Farm registered for support from': 'farm_registered_for_support_from',
+        'Number of shade trees': 'number_of_shade_trees',
+        'Number of shade tree species': 'number_of_shade_tree_species',
+        'Status': 'status',
+        'Activity': 'activity',
     },
     'Yearly_Data': {
-        'Name of fertilizer': 'Name_of_fertilizer',
-        'Fertilizer volume': 'Fertilizer_volume',
-        'Fertilizer cost': 'Fertilizer_cost',
-        'Name of Pesticides': 'Name_of_Pesticides',
-        'Pesticides volume': 'Pesticides_volume',
-        'Pesticides cost': 'Pesticides_cost',
-        'Name of Herbicides': 'Name_of_Herbicides',
-        'Herbicides volume': 'Herbicides_volume',
-        'Herbicides cost': 'Herbicides_cost',
-        'Shade_Trees_supported by': 'Shade_Trees_supported_by',
-        'Year planted': 'Year_planted',
-        'Fertiliser supported by WWF': 'Fertiliser_supported_by_WWF',
-        'Lime supported by Slow': 'Lime_supported_by_Slow',
-        'Cover crop supported by Slow (yes/no)': 'Cover_crop_supported_by_Slow',
-        'Attending training capacity organized by PFFP': 'Attending_training_capacity_organized_by_PFFP',
-        'Cherry sales registered to Slow': 'Cherry_sales_registered_to_Slow',
-        'Cherry sales supplied to Slow': 'Cherry_sales_supplied_to_Slow',
-        'Revenue from cherry sales to Slow (VND)': 'Revenue_from_cherry_sales_to_Slow',
-        'Cherry bought by Slow via processor': 'Cherry_bought_by_Slow_thru_processor',
+        'Record_Id': 'record_id',
+        'Farmer_ID': 'farmer_id',
+        'Year': 'year',
+        'Annual_Volume_Cherry': 'annual_volume_cherry',
+        'Volume_High_Quality': 'volume_high_quality',
+        'Total_Coffee_Income': 'total_coffee_income',
+        'Fertilizers_Applied': 'fertilizers_applied',
+        'Name of fertilizer': 'name_of_fertilizer',
+        'Fertilizer volume': 'fertilizer_volume',
+        'Fertilizer cost': 'fertilizer_cost',
+        'Pesticides_Applied': 'pesticides_applied',
+        'Name of Pesticides': 'name_of_pesticides',
+        'Pesticides volume': 'pesticides_volume',
+        'Pesticides cost': 'pesticides_cost',
+        'Herbicides_Applied': 'herbicides_applied',
+        'Name of Herbicides': 'name_of_herbicides',
+        'Herbicides volume': 'herbicides_volume',
+        'Herbicides cost': 'herbicides_cost',
+        'Hired_Labor_Costs': 'hired_labor_costs',
+        'Other_Costs': 'other_costs',
+        'Shade_Trees_supported by': 'shade_trees_supported_by',
+        'Number_Shade_Trees_Planted': 'number_shade_trees_planted',
+        'Shade_Trees_Species': 'shade_trees_species',
+        'Year planted': 'year_planted',
+        'Shade_Trees_Died': 'shade_trees_died',
+        'Survival Rate': 'survival_rate',
+        'Fertiliser supported by WWF': 'fertiliser_by_wwf',
+        'Lime supported by Slow': 'lime_from_slow',
+        'Cover crop supported by Slow (yes/no)': 'cover_crop_from_slow',
+        'Attending training capacity organized by PFFP': 'attending_training',
+        'Op6_Activities': 'op6_activities',
+        'Cherry sales registered to Slow': 'cherry_sales_registered_to_slow',
+        'Cherry sales supplied to Slow': 'cherry_sales_supplied_to_slow',
+        'Revenue from cherry sales to Slow (VND)': 'revenue_from_cherry_sales_to_slow',
+        'Cherry bought by Slow via processor': 'cherry_slow_thru_processor',
     },
     'Supported': {
-        'Farmer ID': 'Farmer_ID',
-        'Support code': 'Support_code',
-        'A live': 'A_live',
-        'Supported by': 'Supported_by',
-        'Suppoted year': 'Supported_year',
+        'Record_Id': 'support_id',
+        'Farmer ID': 'farmer_id',
+        'Support code': 'support_code',
+        'A live': 'a_live',
+        'Supported by': 'supported_by',
+        'Suppoted year': 'supported_year',
     }
 }
 
 # Collections to process in order (FK dependency)
 COLLECTIONS = [
-    ('Farmers',     'farmers',      'Farmer_ID'),
-    ('Plots',       'plots',        'Plot_Id'),
-    ('Yearly_Data', 'yearly_data',  'Record_Id'),
-    ('Supported',   'supported',    'Support_ID'),
+    ('Farmers',     'farmers',      'farmer_id'),
+    ('Plots',       'plots',        'plot_id'),
+    ('Yearly_Data', 'yearly_data',  'record_id'),
+    ('Supported',   'support',      'support_id'), # Sheet='Supported' -> Collection='support'
 ]
 
-def delete_all_records(collection):
+def delete_all_records(collection, headers):
     """Delete all records from a collection (paginated)."""
     total_deleted = 0
     while True:
-        resp = requests.get(f"{PB_URL}/api/collections/{collection}/records?perPage=200&fields=id")
+        resp = requests.get(f"{PB_URL}/api/collections/{collection}/records?perPage=200&fields=id", headers=headers)
         data = resp.json()
         items = data.get('items', [])
         if not items:
             break
         for item in items:
-            r = requests.delete(f"{PB_URL}/api/collections/{collection}/records/{item['id']}")
+            r = requests.delete(f"{PB_URL}/api/collections/{collection}/records/{item['id']}", headers=headers)
             if r.status_code in (200, 204):
                 total_deleted += 1
             else:
                 print(f"  WARN: Failed to delete {item['id']}: {r.status_code}")
     return total_deleted
 
+import re
+
+def to_pb_field(header, field_map):
+    """Normalize header to PocketBase field name."""
+    if header in field_map:
+        return field_map[header]
+    # Automatic conversion: CamelCase/Spaces -> snake_case
+    s = str(header).strip()
+    # Replace non-alphanumeric with underscore
+    s = re.sub(r'[^a-zA-Z0-9]', '_', s)
+    # lowercase
+    s = s.lower()
+    # Collapse multiple underscores
+    s = re.sub(r'_+', '_', s)
+    return s.strip('_')
+
 def read_sheet(wb, sheet_name, field_map):
     """Read a sheet and return list of dicts with PB field names."""
+    if sheet_name not in wb.sheetnames:
+        print(f"  WARN: Sheet '{sheet_name}' not found in Excel.")
+        return []
     ws = wb[sheet_name]
     rows = list(ws.iter_rows(min_row=1, values_only=False))
     if not rows:
@@ -112,7 +176,7 @@ def read_sheet(wb, sheet_name, field_map):
             if header is None:
                 continue
             # Map Excel header to PB field name
-            pb_field = field_map.get(header, header)
+            pb_field = to_pb_field(header, field_map)
             # Convert value to string for text fields, keep numbers
             if value is None:
                 record[pb_field] = ""
@@ -134,7 +198,7 @@ def import_records(collection, records, pk_field):
             resp = requests.post(
                 f"{PB_URL}/api/collections/{collection}/records",
                 json=record,
-                headers={"Content-Type": "application/json"}
+                headers=HEADERS
             )
             if resp.status_code in (200, 201):
                 success += 1
@@ -158,17 +222,19 @@ def main():
     print("PFFP Data Import")
     print("=" * 60)
 
-    # Check PB health
-    try:
-        resp = requests.get(f"{PB_URL}/api/health")
-        if resp.status_code != 200:
-            print(f"ERROR: PocketBase not healthy: {resp.status_code}")
-            return
-    except:
-        print("ERROR: Cannot connect to PocketBase")
+    # Auth
+    print("Authenticating...")
+    auth_resp = requests.post(f"{PB_URL}/api/collections/_superusers/auth-with-password", json={
+        "identity": "impact@slowforest.vn",
+        "password": "Huongphung@452#"
+    })
+    if auth_resp.status_code != 200:
+        print("Auth failed:", auth_resp.text)
         return
-
-    print(f"PocketBase OK at {PB_URL}")
+    
+    token = auth_resp.json()["token"]
+    global HEADERS
+    HEADERS = {"Authorization": token, "Content-Type": "application/json"}
 
     # Load Excel
     print(f"\nLoading Excel: {EXCEL_FILE}")
@@ -177,9 +243,9 @@ def main():
 
     # Step 1: Clear existing data (reverse FK order)
     print("\n--- CLEARING EXISTING DATA ---")
-    for sheet_name, collection, pk in reversed(COLLECTIONS[:3]):  # Only clear farmers/plots/yearly
+    for sheet_name, collection, pk in reversed(COLLECTIONS):  # Clear all 4
         print(f"Clearing {collection}...")
-        deleted = delete_all_records(collection)
+        deleted = delete_all_records(collection, HEADERS)
         print(f"  Deleted {deleted} records")
 
     # Step 2: Import data

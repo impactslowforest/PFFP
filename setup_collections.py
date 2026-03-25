@@ -22,19 +22,29 @@ TOKEN = auth.json()["token"]
 HEADERS = {"Authorization": TOKEN, "Content-Type": "application/json"}
 
 def create_collection(name, fields, id_field=None):
-    """Create a base collection with given fields."""
+    # Check if exists and delete
+    check_resp = requests.get(f"{BASE}/api/collections?filter=(name='{name}')", headers=HEADERS)
+    if check_resp.status_code == 200 and check_resp.json()['items']:
+        col_id = check_resp.json()['items'][0]['id']
+        print(f"  Deleting existing collection {name} ({col_id})...")
+        requests.delete(f"{BASE}/api/collections/{col_id}", headers=HEADERS)
+
     payload = {
         "name": name,
         "type": "base",
         "fields": fields,
-        "indexes": []
+        "listRule": "",
+        "viewRule": "",
+        "createRule": "",
+        "updateRule": "",
+        "deleteRule": ""
     }
-    resp = requests.post(f"{BASE}/api/collections", headers=HEADERS, json=payload)
-    if resp.status_code in (200, 204):
-        print(f"  [OK] {name}")
+    resp = requests.post(f"{BASE}/api/collections", json=payload, headers=HEADERS)
+    if resp.status_code in (200, 201):
+        print(f"  [OK] Created {name}")
         return True
     else:
-        print(f"  [FAIL] {name}: {resp.status_code} - {resp.text[:200]}")
+        print(f"  [FAIL] {name}: {resp.text}")
         return False
 
 def text(name, required=False, unique=False):
@@ -54,182 +64,171 @@ def date_field(name, required=False):
 
 # ============================================================
 # Collection definitions
-# Field names: convert spaces -> underscores, keep close to original
 # ============================================================
 
 collections = {}
 
-# 1. FARMERS
 collections["farmers"] = [
-    text("Farmer_ID", required=True, unique=True),
-    text("Full_Name"),
-    text("Year_Of_Birth"),
-    text("Gender"),
-    text("Phone_Number"),
-    text("Farmer_Group_Name"),
-    text("Cooperative_Name"),
-    text("Village_Name"),
-    text("Commune_Name"),
-    text("Address"),
-    text("ID_card"),
-    text("Ethnicity"),
-    text("Socioeconomic_Status"),
-    text("Household_Circumstances"),
-    number("Num_Household_Members"),
-    number("Num_Working_Members"),
-    number("Total_Coffee_Area"),
-    number("Total_Area_registered"),
-    number("Number_of_coffee_farm_plots"),
-    text("Supported_by"),
-    text("Manage_by"),
-    text("Year_of_support"),
-    text("Supported_Types"),
-    text("Participation_Year"),
-    text("Status"),
-    text("Activity"),
-    text("Staff_input"),
+    text("farmer_id", required=True, unique=True),
+    text("full_name"),
+    text("year_of_birth"),
+    text("gender"),
+    text("phone_number"),
+    text("farmer_group_name"),
+    text("cooperative_name"),
+    text("village_name"),
+    text("commune_name"),
+    text("address"),
+    text("id_card"),
+    text("ethnicity"),
+    text("socioeconomic_status"),
+    text("household_circumstances"),
+    number("num_household_members"),
+    number("num_working_members"),
+    number("total_coffee_area"),
+    number("total_area_registered"),
+    number("number_of_coffee_farm_plots"),
+    text("supported_by"),
+    text("manage_by"),
+    text("year_of_support"),
+    text("supported_types"),
+    text("participation_year"),
+    text("status"),
+    text("activity"),
+    text("staff_input"),
 ]
 
-# 2. PLOTS
 collections["plots"] = [
-    text("Plot_Id", required=True, unique=True),
-    text("Farmer_ID"),
-    text("Plot_Name"),
-    number("Area_ha"),
-    text("Location"),
-    text("Land_use_rights_certificate"),
-    text("Border_Natural_Forest"),
-    text("Place_name"),
-    number("Num_Shade_Trees_Before"),
-    text("Name_Shade_Trees_Before"),
-    number("Num_Coffee_Trees"),
-    text("Coffee_Planted_Year"),
-    text("Notes_for_details"),
-    text("Map_Sheet"),
-    text("Sub_mapsheet"),
-    text("Status"),
-    text("Activity"),
+    text("plot_id", required=True, unique=True),
+    text("farmer_id"),
+    text("plot_name"),
+    number("area_ha"),
+    text("location"),
+    text("land_use_rights_certificate"),
+    text("border_natural_forest"),
+    text("place_name"),
+    number("num_shade_trees_before"),
+    text("name_shade_trees_before"),
+    number("num_coffee_trees"),
+    text("coffee_planted_year"),
+    text("notes_for_details"),
+    text("map_sheet"),
+    text("sub_mapsheet"),
+    text("status"),
+    text("activity"),
 ]
 
-# 3. YEARLY_DATA
 collections["yearly_data"] = [
-    text("Record_Id", required=True, unique=True),
-    text("Farmer_ID"),
-    text("Year"),
-    number("Annual_Volume_Cherry"),
-    number("Volume_High_Quality"),
-    number("Total_Coffee_Income"),
-    text("Fertilizers_Applied"),
-    text("Name_of_fertilizer"),
-    number("Fertilizer_volume"),
-    number("Fertilizer_cost"),
-    text("Pesticides_Applied"),
-    text("Name_of_Pesticides"),
-    number("Pesticides_volume"),
-    number("Pesticides_cost"),
-    text("Herbicides_Applied"),
-    text("Name_of_Herbicides"),
-    number("Herbicides_volume"),
-    number("Herbicides_cost"),
-    number("Hired_Labor_Costs"),
-    number("Other_Costs"),
-    text("Shade_Trees_supported_by"),
-    number("Number_Shade_Trees_Planted"),
-    text("Shade_Trees_Species"),
-    text("Year_planted"),
-    number("Shade_Trees_Died"),
-    number("Survival_Rate"),
-    text("Fertiliser_by_WWF"),
-    text("Lime_from_SLOW"),
-    text("Cover_Crop_from_SLOW"),
-    text("Soil_Test_Support"),
-    text("Attending_training"),
-    text("Op6_Activities"),
-    number("Cherry_sales_registered_to_Slow"),
-    number("Cherry_sales_supplied_to_Slow"),
-    number("Revenue_from_cherry_sales_to_Slow"),
-    number("Cherry_Slow_thru_processor"),
-    text("Update_info"),
-    text("Status"),
-    text("Activity"),
+    text("record_id", required=True, unique=True),
+    text("farmer_id"),
+    text("year"),
+    number("annual_volume_cherry"),
+    number("volume_high_quality"),
+    number("total_coffee_income"),
+    text("fertilizers_applied"),
+    text("name_of_fertilizer"),
+    number("fertilizer_volume"),
+    number("fertilizer_cost"),
+    text("pesticides_applied"),
+    text("name_of_pesticides"),
+    number("pesticides_volume"),
+    number("pesticides_cost"),
+    text("herbicides_applied"),
+    text("name_of_herbicides"),
+    number("herbicides_volume"),
+    number("herbicides_cost"),
+    number("hired_labor_costs"),
+    number("other_costs"),
+    text("shade_trees_supported_by"),
+    number("number_shade_trees_planted"),
+    text("shade_trees_species"),
+    text("year_planted"),
+    number("shade_trees_died"),
+    number("survival_rate"),
+    text("fertiliser_by_wwf"),
+    text("lime_from_slow"),
+    text("cover_crop_from_slow"),
+    text("soil_test_support"),
+    text("attending_training"),
+    text("op6_activities"),
+    number("cherry_sales_registered_to_slow"),
+    number("cherry_sales_supplied_to_slow"),
+    number("revenue_from_cherry_sales_to_slow"),
+    number("cherry_slow_thru_processor"),
+    text("update_info"),
+    text("status"),
+    text("activity"),
 ]
 
-# 4. PLOT_YEARLY_SUPPORT
-collections["plot_yearly_support"] = [
-    text("Support_ID", required=True, unique=True),
-    text("Plot_Id"),
-    text("Year"),
-    number("Num_Trees_Received"),
-    text("Shade_Trees_Species"),
-    number("Num_Trees_Survived"),
-    number("Num_Trees_Died"),
-    number("Survival_Rate"),
-    text("Supported_By"),
-    number("Num_Shade_Species"),
-    text("Registered_Support"),
-    text("Notes"),
-    text("Status"),
-    text("Activity"),
+collections["support"] = [
+    text("support_id", required=True, unique=True),
+    text("plot_id"),
+    text("year"),
+    number("num_trees_received"),
+    text("shade_trees_species"),
+    number("num_trees_survived"),
+    number("num_trees_died"),
+    number("survival_rate"),
+    text("supported_by"),
+    number("num_shade_species"),
+    text("registered_support"),
+    text("notes"),
+    text("status"),
+    text("activity"),
 ]
 
-# 5. APP_USERS (renamed from "users" to avoid PocketBase built-in collision)
 collections["app_users"] = [
-    text("Staff_ID", required=True, unique=True),
-    text("Full_name", required=True),
-    text("Organization"),
-    text("Position"),
-    text("Gender"),
-    email_field("Email"),
-    text("Phone"),
-    text("Password", required=True),
-    text("Authority"),
-    text("Role"),
-    text("Status"),
-    text("View"),
-    text("Rule"),
+    text("staff_id", required=True, unique=True),
+    text("full_name", required=True),
+    text("organization"),
+    text("position"),
+    text("gender"),
+    email_field("email"),
+    text("phone"),
+    text("password", required=True),
+    text("authority"),
+    text("role"),
+    text("status"),
+    text("view"),
+    text("rule"),
 ]
 
-# 6. OP6_ACTIVITIES_LIST
 collections["op6_activities_list"] = [
-    text("OP6_ID", required=True, unique=True),
-    text("Name_EN"),
-    text("Name_VI"),
-    text("Type"),
-    text("From_date"),
-    text("To_date"),
+    text("op6_id", required=True, unique=True),
+    text("name_en"),
+    text("name_vi"),
+    text("type"),
+    text("from_date"),
+    text("to_date"),
 ]
 
-# 7. SPECIES
 collections["species"] = [
-    text("Species_ID", required=True, unique=True),
-    text("Species_name", required=True),
-    text("Species_type"),
-    text("Species_Info"),
+    text("species_id", required=True, unique=True),
+    text("species_name", required=True),
+    text("species_type"),
+    text("species_info"),
 ]
 
-# 8. ADMIN
 collections["admin"] = [
-    text("Adm_ID", required=True, unique=True),
-    text("Condition", required=True),
-    text("Label_EN"),
-    text("Label_VN"),
-    text("Notes"),
+    text("adm_id", required=True, unique=True),
+    text("condition", required=True),
+    text("label_en"),
+    text("label_vn"),
+    text("notes"),
 ]
 
-# 9. TRAINING_LIST
 collections["training_list"] = [
-    text("Train_ID", required=True, unique=True),
-    text("Name_EN"),
-    text("Name_VI"),
+    text("train_id", required=True, unique=True),
+    text("name_en"),
+    text("name_vi"),
 ]
 
-# 10. DROP_VALUES (dropdown values)
 collections["drop_values"] = [
-    text("Code", required=True, unique=True),
-    text("Condition", required=True),
-    text("Label"),
-    text("Label_EN"),
-    text("Label_VN"),
+    text("code", required=True, unique=True),
+    text("condition", required=True),
+    text("label"),
+    text("label_en"),
+    text("label_vn"),
 ]
 
 # ============================================================
@@ -256,220 +255,34 @@ print(f"Done: {success} created, {fail} failed")
 print("\nAdding unique indexes...")
 
 index_map = {
-    "farmers": "Farmer_ID",
-    "plots": "Plot_Id",
-    "yearly_data": "Record_Id",
-    "plot_yearly_support": "Support_ID",
-    "app_users": "Staff_ID",
-    "op6_activities_list": "OP6_ID",
-    "species": "Species_ID",
-    "admin": "Adm_ID",
-    "training_list": "Train_ID",
-    "drop_values": "Code",
+    "farmers": "farmer_id",
+    "plots": "plot_id",
+    "yearly_data": "record_id",
+    "support": "support_id",
+    "app_users": "staff_id",
+    "op6_activities_list": "op6_id",
+    "species": "species_id",
+    "admin": "adm_id",
+    "training_list": "train_id",
+    "drop_values": "code",
 }
 
-# Get all collections to find their IDs
-cols_resp = requests.get(f"{BASE}/api/collections", headers=HEADERS)
-if cols_resp.status_code == 200:
-    all_cols = cols_resp.json()
-    # Handle both list and paginated response
-    if isinstance(all_cols, list):
-        col_list = all_cols
+# Find collection IDs
+resp = requests.get(f"{BASE}/api/collections?perPage=100", headers=HEADERS)
+all_cols = {c['name']: c['id'] for c in resp.json()['items']}
+
+for col_name, field_name in index_map.items():
+    if col_name not in all_cols: continue
+    col_id = all_cols[col_name]
+    
+    # Simple direct patch for index (PocketBase format)
+    index_payload = {
+        "indexes": [f"CREATE UNIQUE INDEX idx_{col_id}_unique_{field_name} ON {col_name} ({field_name})"]
+    }
+    r = requests.patch(f"{BASE}/api/collections/{col_id}", json=index_payload, headers=HEADERS)
+    if r.status_code == 200:
+        print(f"  [OK] {col_name}.{field_name} unique index")
     else:
-        col_list = all_cols.get("items", all_cols)
+        print(f"  [FAIL] {col_name}.{field_name} index: {r.text}")
 
-    for col in col_list:
-        col_name = col.get("name", "")
-        if col_name in index_map:
-            field_name = index_map[col_name]
-            idx_name = f"idx_unique_{col_name}_{field_name}"
-            index_str = f"CREATE UNIQUE INDEX `{idx_name}` ON `{col_name}` (`{field_name}`)"
-
-            # Update collection with index
-            update_resp = requests.patch(
-                f"{BASE}/api/collections/{col_name}",
-                headers=HEADERS,
-                json={"indexes": [index_str]}
-            )
-            if update_resp.status_code == 200:
-                print(f"  [OK] {col_name}.{field_name} unique index")
-            else:
-                print(f"  [FAIL] {col_name}: {update_resp.status_code} - {update_resp.text[:200]}")
-
-print("\nSetup complete!")
-
-# ============================================================
-# Print field name mapping (old Supabase -> new PocketBase)
-# ============================================================
-print("\n" + "=" * 50)
-print("FIELD NAME MAPPING (Supabase -> PocketBase)")
-print("=" * 50)
-
-mapping = {
-    "farmers": {
-        "Farmer_ID": "Farmer_ID",
-        "Full_Name": "Full_Name",
-        "Year_Of_Birth": "Year_Of_Birth",
-        "Gender": "Gender",
-        "Phone_Number": "Phone_Number",
-        "Farmer_Group_Name": "Farmer_Group_Name",
-        "Cooperative_Name": "Cooperative_Name",
-        "Village_Name": "Village_Name",
-        "Commune_Name": "Commune_Name",
-        "Address": "Address",
-        "ID card": "ID_card",
-        "Ethnicity": "Ethnicity",
-        "Socioeconomic Status": "Socioeconomic_Status",
-        "Household Circumstances": "Household_Circumstances",
-        "Num_Household_Members": "Num_Household_Members",
-        "Num_Working_Members": "Num_Working_Members",
-        "Total_Coffee_Area": "Total_Coffee_Area",
-        "Total Area registered": "Total_Area_registered",
-        "Number of coffee farm plots": "Number_of_coffee_farm_plots",
-        "Supported by": "Supported_by",
-        "Manage by": "Manage_by",
-        "Year of support": "Year_of_support",
-        "Supported Types": "Supported_Types",
-        "Participation Year": "Participation_Year",
-        "Status": "Status",
-        "Activity": "Activity",
-        "Staff input": "Staff_input",
-    },
-    "plots": {
-        "Plot_Id": "Plot_Id",
-        "Farmer_ID": "Farmer_ID",
-        "Plot_Name": "Plot_Name",
-        "Area (ha)": "Area_ha",
-        "Location": "Location",
-        "Land use rights certificate?": "Land_use_rights_certificate",
-        "Border_Natural_Forest": "Border_Natural_Forest",
-        "Place name": "Place_name",
-        "Num_Shade_Trees_Before": "Num_Shade_Trees_Before",
-        "Name_Shade_Trees_Before": "Name_Shade_Trees_Before",
-        "Num_Coffee_Trees": "Num_Coffee_Trees",
-        "Coffee_Planted_Year": "Coffee_Planted_Year",
-        "Notes for details (Optional)": "Notes_for_details",
-        "Map Sheet": "Map_Sheet",
-        "Sub-mapsheet": "Sub_mapsheet",
-        "Status": "Status",
-        "Activity": "Activity",
-    },
-    "yearly_data": {
-        "Record_Id": "Record_Id",
-        "Farmer_ID": "Farmer_ID",
-        "Year": "Year",
-        "Annual_Volume_Cherry": "Annual_Volume_Cherry",
-        "Volume_High_Quality": "Volume_High_Quality",
-        "Total_Coffee_Income": "Total_Coffee_Income",
-        "Fertilizers_Applied": "Fertilizers_Applied",
-        "Name of fertilizer": "Name_of_fertilizer",
-        "Fertilizer volume": "Fertilizer_volume",
-        "Fertilizer cost": "Fertilizer_cost",
-        "Pesticides_Applied": "Pesticides_Applied",
-        "Name of Pesticides": "Name_of_Pesticides",
-        "Pesticides volume": "Pesticides_volume",
-        "Pesticides cost": "Pesticides_cost",
-        "Herbicides_Applied": "Herbicides_Applied",
-        "Name of Herbicides": "Name_of_Herbicides",
-        "Herbicides volume": "Herbicides_volume",
-        "Herbicides cost": "Herbicides_cost",
-        "Hired_Labor_Costs": "Hired_Labor_Costs",
-        "Other_Costs": "Other_Costs",
-        "Shade_Trees_supported by": "Shade_Trees_supported_by",
-        "Number_Shade_Trees_Planted": "Number_Shade_Trees_Planted",
-        "Shade_Trees_Species": "Shade_Trees_Species",
-        "Year planted": "Year_planted",
-        "Shade_Trees_Died": "Shade_Trees_Died",
-        "Survival Rate": "Survival_Rate",
-        "Fertiliser by WWF": "Fertiliser_by_WWF",
-        "Lime from SLOW": "Lime_from_SLOW",
-        "Cover Crop from SLOW (Yes/No)": "Cover_Crop_from_SLOW",
-        "Soil Test Support": "Soil_Test_Support",
-        "Attending training capacity organized by PFFP": "Attending_training",
-        "Op6_Activities": "Op6_Activities",
-        "Cherry sales registered to Slow": "Cherry_sales_registered_to_Slow",
-        "Cherry sales supplied to Slow": "Cherry_sales_supplied_to_Slow",
-        "Revenue from cherry sales to Slow (VND)": "Revenue_from_cherry_sales_to_Slow",
-        "Cherry bought by Slow via processor": "Cherry_Slow_thru_processor",
-        "Update": "Update_info",
-        "Status": "Status",
-        "Activity": "Activity",
-    },
-    "plot_yearly_support": {
-        "Support_ID": "Support_ID",
-        "Plot_Id": "Plot_Id",
-        "Year": "Year",
-        "Num_Trees_Received": "Num_Trees_Received",
-        "Shade_Trees_Species": "Shade_Trees_Species",
-        "Num_Trees_Survived": "Num_Trees_Survived",
-        "Num_Trees_Died": "Num_Trees_Died",
-        "Survival_Rate": "Survival_Rate",
-        "Supported_By": "Supported_By",
-        "Num_Shade_Species": "Num_Shade_Species",
-        "Registered_Support": "Registered_Support",
-        "Notes": "Notes",
-        "Status": "Status",
-        "Activity": "Activity",
-    },
-    "users": {
-        "Staff ID": "Staff_ID",
-        "Full name": "Full_name",
-        "Organization": "Organization",
-        "Position": "Position",
-        "Gender": "Gender",
-        "Email": "Email",
-        "Phone": "Phone",
-        "Password": "Password",
-        "Authority": "Authority",
-        "Role": "Role",
-        "Status": "Status",
-        "View": "View",
-        "Rule": "Rule",
-    },
-    "op6_activities_list": {
-        "OP6 ID": "OP6_ID",
-        "Name_EN": "Name_EN",
-        "Name_VI": "Name_VI",
-        "Type": "Type",
-        "From date": "From_date",
-        "To date": "To_date",
-    },
-    "species": {
-        "Species_ID": "Species_ID",
-        "Species_name": "Species_name",
-        "Species type": "Species_type",
-        "Species Info": "Species_Info",
-    },
-    "admin": {
-        "Adm_ID": "Adm_ID",
-        "Condition": "Condition",
-        "Label EN": "Label_EN",
-        "Label VN": "Label_VN",
-        "Notes": "Notes",
-    },
-    "training_list": {
-        "Train_ID": "Train_ID",
-        "Name_EN": "Name_EN",
-        "Name_VI": "Name_VI",
-    },
-    "drop_values": {
-        "ID": "Code",
-        "Condition": "Condition",
-        "Label": "Label",
-        "Label_EN": "Label_EN",
-        "Label_VN": "Label_VN",
-    },
-}
-
-# Save mapping to JSON for frontend migration
-with open(r"c:\Users\User\OneDrive - Slow Forest\Apps\PFFP\Cloude_PFFP_16Feb2026\field_mapping.json", "w", encoding="utf-8") as f:
-    json.dump(mapping, f, indent=2, ensure_ascii=False)
-
-print("\nField mapping saved to field_mapping.json")
-
-for table, fields in mapping.items():
-    changed = {k: v for k, v in fields.items() if k != v}
-    if changed:
-        print(f"\n{table}:")
-        for old, new in changed.items():
-            print(f"  '{old}' -> '{new}'")
+print("Setup complete!")

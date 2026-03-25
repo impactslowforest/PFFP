@@ -259,29 +259,17 @@ routerAdd("POST", "/api/custom/login", (e) => {
         });
     }
 
+    // Hash-based password comparison (PasswordHash = sha256(PasswordSalt + ":" + plainPassword))
     var storedHash = record.getString("PasswordHash");
     var storedSalt = record.getString("PasswordSalt");
     var isValid = false;
-
     if (storedHash && storedSalt) {
-        // Verify hashed password
-        var computed = $security.sha256(storedSalt + ":" + password);
-        isValid = $security.equal(computed, storedHash);
+        var computedHash = $security.sha256(storedSalt + ":" + password);
+        isValid = (computedHash === storedHash);
     } else {
-        // Legacy fallback: check old plaintext Password field
-        var oldPassword = record.getString("Password");
-        if (oldPassword && oldPassword !== "********") {
-            isValid = (oldPassword.trim() === password);
-            // Auto-migrate on successful legacy login
-            if (isValid) {
-                var salt = $security.randomString(16);
-                var hash = $security.sha256(salt + ":" + password);
-                record.set("PasswordHash", hash);
-                record.set("PasswordSalt", salt);
-                record.set("Password", "********");
-                $app.save(record);
-            }
-        }
+        // Fallback for accounts with plain password not yet migrated
+        var storedPassword = record.getString("Password");
+        isValid = (storedPassword !== "********" && storedPassword === password);
     }
 
     if (!isValid) {
@@ -289,15 +277,14 @@ routerAdd("POST", "/api/custom/login", (e) => {
     }
 
     var userData = record.publicExport();
-    delete userData.Password;
-    delete userData.PasswordHash;
-    delete userData.PasswordSalt;
+    delete userData.password;
 
     return e.json(200, {
         success: true,
         user: userData
     });
 });
+
 
 // ============================================================
 // ROUTE: POST /api/forgot-password (with email sending)

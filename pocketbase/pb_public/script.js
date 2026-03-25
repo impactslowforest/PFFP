@@ -1137,6 +1137,12 @@ var INTERSECT_KEY = '__INTERSECT_SLO_PFFP__';
 var SLO_FAMILY = ['SLO', 'SLO1'];
 var PFFP_FAMILY = ['PFFP'];
 
+// Helper: extract and normalize Year from farmer_year record
+// Returns e.g. "24Y", "25Y" matching the format stored in Year field
+function getFarmerYearValue(fy) {
+    return String(fy['Year'] || fy['year'] || fy['Participation_Year'] || fy['participation_year'] || '').trim();
+}
+
 // --- ManageBy Tree Filter (Program x Year with counts + SLO & PFFP intersection) ---
 function populateManageByTree() {
     var fyData = rawData.farmer_year || [];
@@ -1261,14 +1267,22 @@ function getManageByTreeSelection() {
         });
     });
 
-    // Also check parent-only selections (parent checked but no children checked = select all years for that program)
+    // Also check parent-only selections (parent checked = select all years for that program)
     $('.check-item[data-group="manageBy"][data-tree-parent]:checked').each(function () {
         var progs = $(this).val().split(',');
         var safeId = $(this).attr('id').replace('manageBy_', '');
-        var childChecks = $('input[data-tree-child="' + safeId + '"]');
-        if (childChecks.length === 0) {
-            progs.forEach(function (p) { selectedPrograms.add(p); });
-        }
+        // Add all year-level children as pairs
+        $('input[data-tree-child="' + safeId + '"]:checked').each(function() {
+            var val = $(this).val(); // e.g. "PFFP|24Y"
+            var parts = val.split('|');
+            var yr = parts[1] || '';
+            progs.forEach(function(p) {
+                if (!selectedPairs.some(function(sp) { return sp.program === p && sp.year === yr; })) {
+                    selectedPairs.push({ program: p, year: yr });
+                    selectedPrograms.add(p);
+                }
+            });
+        });
     });
 
     return { mode: 'filtered', pairs: selectedPairs, programs: selectedPrograms };
@@ -1349,10 +1363,11 @@ function applyFilter() {
             // Use farmer_year table for cross-filter Year × Program
             if (fY !== 'All' || treeSel.mode !== 'all') {
                 let matchedFY = (rawData.farmer_year || []).filter(fy => {
-                    if (fY !== 'All' && !fY.includes(fy['Year'])) return false;
+                    var fyYear = getFarmerYearValue(fy).toUpperCase();
+                    if (fY !== 'All' && !fY.includes(fyYear) && !fY.includes(fy['Year'])) return false;
                     if (treeSel.mode === 'filtered') {
-                        var prog = String(fy['Program'] || '').trim();
-                        var year = fy['Year'] || '';
+                        var prog = String(fy['Program'] || fy['program'] || '').trim();
+                        var year = fyYear;
                         var matched = treeSel.pairs.some(function (p) {
                             if (p.program === INTERSECT_KEY) { return p.year === year; } // intersect group: year only
                             return p.program === prog && p.year === year;
@@ -1361,7 +1376,7 @@ function applyFilter() {
                     }
                     return true;
                 });
-                fyFilterFIDs = new Set(matchedFY.map(fy => fy['Farmer_ID']));
+                fyFilterFIDs = new Set(matchedFY.map(fy => String(fy['Farmer_ID'] || fy['farmer_id'] || '').trim()).filter(Boolean));
 
                 // Post-process: if INTERSECT_KEY selected, restrict to farmers with BOTH SLO/SLO1 AND PFFP
                 var hasIP = treeSel.mode === 'filtered' && treeSel.pairs.some(function(p) { return p.program === INTERSECT_KEY; });
