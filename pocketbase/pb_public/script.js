@@ -6463,7 +6463,7 @@ function showKpiDrilldown(kpiType) {
     if (kpiType === 'totalSpecies') {
         var suppAll3 = rawData.supported || [];
         var fids3 = new Set(farmers.map(function (ff) { return ff.Farmer_ID; }));
-        var treeRecs3 = suppAll3.filter(function (s) { return fids3.has(s.Farmer_ID) && (s.Unit || '').toLowerCase().indexOf('tree') >= 0; });
+        var treeRecs3 = suppAll3.filter(function (s) { var sn = (s.Species_Name || '').trim(); return fids3.has(s.Farmer_ID) && sn !== '' && sn !== 'Cỏ lạc dại'; });
         var speciesStats = {};
         treeRecs3.forEach(function (s) {
             var sp = s.Species_Name || 'Unknown';
@@ -7031,7 +7031,7 @@ function kpiDrillSpeciesGroupFarmers(speciesCode, groupCode) {
     var fids = new Set(farmers.map(function (f) { return f.Farmer_ID; }));
     var suppAll = rawData.supported || [];
     var recs = suppAll.filter(function (s) {
-        return fids.has(s.Farmer_ID) && s.Species_Name === speciesCode && (s.Unit || '').toLowerCase().indexOf('tree') >= 0;
+        var sn = (s.Species_Name || '').trim(); return fids.has(s.Farmer_ID) && sn === speciesCode && sn !== '' && sn !== 'Cỏ lạc dại';
     });
     // Filter by group
     var farmerData = {};
