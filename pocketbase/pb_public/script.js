@@ -1507,12 +1507,25 @@ function updateUI(f, p, y, s, sc) {
     $('#kpi6').text(suppSpecies.size);
     // KPI7: Farmer groups
     let vS = new Set(); f.forEach(i => { if (i['Farmer_Group_Name']) vS.add(i['Farmer_Group_Name']); }); $('#kpi7').text(vS.size);
-    // KPI8: Completion = YD.Activity='Done' / YD.Status='Act' (entirely from filtered Yearly_Data)
-    let ydAct = y.filter(r => (r['Status'] || '').trim() === 'Act');
-    let dC = ydAct.filter(r => (r['Activity'] || '').trim() === 'Done').length;
-    let kpi8Pct = ydAct.length > 0 ? (dC / ydAct.length * 100).toFixed(2) + '%' : '0.00%';
+    // KPI8: Completion = per-year average of (Done/Act) rates
+    var ydByYear8 = {};
+    y.filter(r => (r['Status'] || '').trim() === 'Act').forEach(function(r) {
+        var yr = (r['Year'] || '').trim();
+        if (!yr) return;
+        if (!ydByYear8[yr]) ydByYear8[yr] = { total: 0, done: 0 };
+        ydByYear8[yr].total++;
+        if ((r['Activity'] || '').trim() === 'Done') ydByYear8[yr].done++;
+    });
+    var yearKeys8 = Object.keys(ydByYear8).filter(function(yr) { return ydByYear8[yr].total > 0; });
+    var kpi8Pct = '0.00%';
+    var kpi8Title = '';
+    if (yearKeys8.length > 0) {
+        var sumRates8 = yearKeys8.reduce(function(s, yr) { return s + (ydByYear8[yr].done / ydByYear8[yr].total * 100); }, 0);
+        kpi8Pct = (sumRates8 / yearKeys8.length).toFixed(2) + '%';
+        kpi8Title = yearKeys8.sort().map(function(yr) { return yr + ':' + ydByYear8[yr].done + '/' + ydByYear8[yr].total; }).join(' | ');
+    }
     $('#kpi8').text(kpi8Pct);
-    $('#kpi8').attr('title', dC + '/' + ydAct.length + ' (YD Act)');
+    $('#kpi8').attr('title', kpi8Title);
     // KPI9: Survival rate from survival_check (average of Survival_Rate)
     var scData = sc || filteredData.survival_check || [];
     var scWithRate = scData.filter(x => { var r = parseFloat(x.Survival_Rate); return !isNaN(r) && r > 0; });
@@ -6656,65 +6669,51 @@ function showKpiDrilldown(kpiType) {
         return;
     }
 
-    // --- Special: Completion Rate — Groups with completion bars, sorted desc ---
+    // --- Special: Completion Rate — Years table, sorted by year ---
     if (kpiType === 'completionRate') {
-        var grpComp = {};
-        // Completion = YD.Activity='Done' / YD.Status='Act' (entirely from Yearly_Data)
-        // Group YD by farmer's group name
-        var fGrpMap = {};
-        farmers.forEach(function (f) { fGrpMap[f.Farmer_ID] = f.Farmer_Group_Name || 'N/A'; });
-        var ydActDrill = (filteredData.yearly || []).filter(function (r) { return (r.Status || '').trim() === 'Act'; });
-        var ydInaDrill = (filteredData.yearly || []).filter(function (r) { return (r.Status || '').trim() === 'InA'; });
-        ydActDrill.forEach(function (r) {
-            var g = fGrpMap[r.Farmer_ID] || 'N/A';
-            if (!grpComp[g]) grpComp[g] = { total: 0, done: 0, ina: 0 };
-            grpComp[g].total++;
-            if ((r.Activity || '').trim() === 'Done') grpComp[g].done++;
+        var yearLabels = { '24Y': '2024', '25Y': '2025', '26Y': '2026', '27Y': '2027' };
+        var ydByYearDrill = {};
+        var ydActDrill = (filteredData.yearly || []).filter(function(r) { return (r.Status || '').trim() === 'Act'; });
+        ydActDrill.forEach(function(r) {
+            var yr = (r.Year || '').trim();
+            if (!yr) return;
+            if (!ydByYearDrill[yr]) ydByYearDrill[yr] = { total: 0, done: 0 };
+            ydByYearDrill[yr].total++;
+            if ((r.Activity || '').trim() === 'Done') ydByYearDrill[yr].done++;
         });
-        ydInaDrill.forEach(function (r) {
-            var g = fGrpMap[r.Farmer_ID] || 'N/A';
-            if (!grpComp[g]) grpComp[g] = { total: 0, done: 0, ina: 0 };
-            grpComp[g].ina++;
-        });
-        var cKeys = Object.keys(grpComp);
-        cKeys.sort(function (a, b) {
-            var ra = grpComp[a].total > 0 ? grpComp[a].done / grpComp[a].total : 0;
-            var rb = grpComp[b].total > 0 ? grpComp[b].done / grpComp[b].total : 0;
-            return rb - ra;
-        });
-        var totalDone = cKeys.reduce(function (s, g) { return s + grpComp[g].done; }, 0);
-        var totalActive = cKeys.reduce(function (s, g) { return s + grpComp[g].total; }, 0);
-        var totalInA = cKeys.reduce(function (s, g) { return s + grpComp[g].ina; }, 0);
-        var overallRate = totalActive > 0 ? (totalDone / totalActive * 100).toFixed(1) : '0';
-        var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'Tổng: ' : 'Overall: ') + '<strong>' + totalDone + '/' + totalActive + ' (' + overallRate + '%)</strong>';
-        if (totalInA > 0) html += ' <span class="text-secondary">| InA: ' + totalInA + '</span>';
-        html += '</p>';
+        var yearKeys = Object.keys(ydByYearDrill).sort();
+        var totalDone = yearKeys.reduce(function(s, yr) { return s + ydByYearDrill[yr].done; }, 0);
+        var totalAct = yearKeys.reduce(function(s, yr) { return s + ydByYearDrill[yr].total; }, 0);
+        var avgRate = yearKeys.length > 0 ? yearKeys.reduce(function(s, yr) {
+            return s + (ydByYearDrill[yr].total > 0 ? ydByYearDrill[yr].done / ydByYearDrill[yr].total * 100 : 0);
+        }, 0) / yearKeys.length : 0;
+        var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'TB các năm: ' : 'Avg rate: ') + '<strong>' + avgRate.toFixed(1) + '%</strong> &nbsp;|&nbsp; ' + (isVi ? 'Tổng: ' : 'Total: ') + totalDone + '/' + totalAct + '</p>';
         html += '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
-        html += '<thead class="table-custom-header"><tr><th>#</th>';
-        html += '<th>' + (isVi ? 'Nhóm hộ' : 'Group') + '</th>';
+        html += '<thead class="table-custom-header"><tr>';
+        html += '<th>#</th><th>' + (isVi ? 'Năm' : 'Year') + '</th>';
         html += '<th>' + (isVi ? 'Hoàn thành' : 'Done') + '</th>';
         html += '<th>' + (isVi ? 'Active' : 'Active') + '</th>';
-        if (totalInA > 0) html += '<th>InA</th>';
         html += '<th>' + (isVi ? 'Tỷ lệ' : 'Rate') + '</th>';
         html += '<th style="min-width:120px"></th>';
         html += '</tr></thead><tbody>';
-        cKeys.forEach(function (g, i) {
-            var st = grpComp[g];
+        yearKeys.forEach(function(yr, i) {
+            var st = ydByYearDrill[yr];
             var rate = st.total > 0 ? (st.done / st.total * 100) : 0;
-            var gLabel = adminMap[g] ? (isVi ? adminMap[g].vi : adminMap[g].en) || g : g;
+            var yLabel = yearLabels[yr] || yr;
             var barClass = rate >= 80 ? '' : (rate >= 50 ? ' warning' : ' danger');
-            html += '<tr class="kpi-drill-row" onclick="kpiDrillCompletionGroup(\'' + escapeHtml(g) + '\')">';
+            var yrEsc = yr.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            html += '<tr class="kpi-drill-row" onclick="kpiDrillCompletionYear(\'' + yrEsc + '\')">';
             html += '<td>' + (i + 1) + '</td>';
-            html += '<td>' + escapeHtml(gLabel) + '</td>';
+            html += '<td>' + escapeHtml(yLabel) + '</td>';
             html += '<td class="fw-bold">' + st.done + '</td>';
             html += '<td>' + st.total + '</td>';
-            if (totalInA > 0) html += '<td class="text-secondary">' + st.ina + '</td>';
             html += '<td>' + rate.toFixed(1) + '%</td>';
             html += '<td><div class="kpi-drill-bar"><div class="kpi-drill-bar-fill' + barClass + '" style="width:' + rate + '%"></div></div></td>';
             html += '</tr>';
         });
+        if (yearKeys.length === 0) html += '<tr><td colspan="6" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
         html += '</tbody></table></div>';
-        $('#farmerDetailTitle').text(title + ' (' + overallRate + '%)');
+        $('#farmerDetailTitle').text(title);
         $('#detailContent').html(html);
         $('#modalActions').html('');
         bootstrap.Modal.getOrCreateInstance(document.getElementById('farmerDetailModal')).show();
@@ -7244,36 +7243,95 @@ function kpiDrillFemaleGroup(groupCode) {
     kpiDrillPush(title, html);
 }
 
-// Completion Rate → Group → Farmer list with status (show InA separately)
-function kpiDrillCompletionGroup(groupCode) {
+// Completion Rate → Year → Groups with completion bars
+function kpiDrillCompletionYear(yearCode) {
     var isVi = currentLang === 'vi';
-    // Build YD status maps for this group's farmers (filter-dependent)
-    var ydStatusMap = {}; // fid -> YD.Status
-    var ydDoneMap = {};   // fid -> true if YD.Activity='Done'
-    (filteredData.yearly || []).forEach(function (r) {
-        ydStatusMap[r.Farmer_ID] = (r.Status || '').trim();
-        if ((r.Activity || '').trim() === 'Done') ydDoneMap[r.Farmer_ID] = true;
+    var yearLabels = { '24Y': '2024', '25Y': '2025', '26Y': '2026', '27Y': '2027' };
+    var yLabel = yearLabels[yearCode] || yearCode;
+    var ydYear = (filteredData.yearly || []).filter(function(r) {
+        return (r.Year || '').trim() === yearCode && (r.Status || '').trim() === 'Act';
     });
-    var allInGroup = (filteredData.farmers || []).filter(function (f) { return (f.Farmer_Group_Name || 'N/A') === groupCode; });
-    // Filter by YD.Status: Act vs InA (from Yearly_Data, not Farmers)
-    var activeList = allInGroup.filter(function (f) { return ydStatusMap[f.Farmer_ID] === 'Act'; });
-    var inaList = allInGroup.filter(function (f) { return ydStatusMap[f.Farmer_ID] === 'InA'; });
-    activeList.sort(function (a, b) {
+    var fGrpMap = {};
+    (filteredData.farmers || []).forEach(function(f) { fGrpMap[f.Farmer_ID] = f.Farmer_Group_Name || 'N/A'; });
+    var grpComp = {};
+    ydYear.forEach(function(r) {
+        var g = fGrpMap[r.Farmer_ID] || 'N/A';
+        if (!grpComp[g]) grpComp[g] = { total: 0, done: 0 };
+        grpComp[g].total++;
+        if ((r.Activity || '').trim() === 'Done') grpComp[g].done++;
+    });
+    var gKeys = Object.keys(grpComp);
+    gKeys.sort(function(a, b) {
+        var ra = grpComp[a].total > 0 ? grpComp[a].done / grpComp[a].total : 0;
+        var rb = grpComp[b].total > 0 ? grpComp[b].done / grpComp[b].total : 0;
+        return rb - ra;
+    });
+    var totalDone = gKeys.reduce(function(s, g) { return s + grpComp[g].done; }, 0);
+    var totalAct = gKeys.reduce(function(s, g) { return s + grpComp[g].total; }, 0);
+    var overallRate = totalAct > 0 ? (totalDone / totalAct * 100).toFixed(1) : '0';
+    var title = yLabel + ' — ' + (isVi ? 'Theo nhóm hộ' : 'By Group');
+    var html = '<p class="mb-2 text-muted" style="font-size:0.85rem;">' + (isVi ? 'Tổng: ' : 'Total: ') + '<strong>' + totalDone + '/' + totalAct + ' (' + overallRate + '%)</strong></p>';
+    html += '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
+    html += '<thead class="table-custom-header"><tr>';
+    html += '<th>#</th><th>' + (isVi ? 'Nhóm hộ' : 'Group') + '</th>';
+    html += '<th>' + (isVi ? 'Hoàn thành' : 'Done') + '</th>';
+    html += '<th>' + (isVi ? 'Active' : 'Active') + '</th>';
+    html += '<th>' + (isVi ? 'Tỷ lệ' : 'Rate') + '</th>';
+    html += '<th style="min-width:120px"></th>';
+    html += '</tr></thead><tbody>';
+    gKeys.forEach(function(g, i) {
+        var st = grpComp[g];
+        var rate = st.total > 0 ? (st.done / st.total * 100) : 0;
+        var gLabel = adminMap[g] ? (isVi ? adminMap[g].vi : adminMap[g].en) || g : g;
+        var barClass = rate >= 80 ? '' : (rate >= 50 ? ' warning' : ' danger');
+        var yrEsc = yearCode.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        var gEsc = g.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        html += '<tr class="kpi-drill-row" onclick="kpiDrillCompletionYearGroup(\'' + yrEsc + '\',\'' + gEsc + '\')">';
+        html += '<td>' + (i + 1) + '</td>';
+        html += '<td>' + escapeHtml(gLabel) + '</td>';
+        html += '<td class="fw-bold">' + st.done + '</td>';
+        html += '<td>' + st.total + '</td>';
+        html += '<td>' + rate.toFixed(1) + '%</td>';
+        html += '<td><div class="kpi-drill-bar"><div class="kpi-drill-bar-fill' + barClass + '" style="width:' + rate + '%"></div></div></td>';
+        html += '</tr>';
+    });
+    if (gKeys.length === 0) html += '<tr><td colspan="6" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
+    html += '</tbody></table></div>';
+    kpiDrillPush(title, html);
+}
+
+// Completion Rate → Year → Group → Farmers with Done/NY status
+function kpiDrillCompletionYearGroup(yearCode, groupCode) {
+    var isVi = currentLang === 'vi';
+    var yearLabels = { '24Y': '2024', '25Y': '2025', '26Y': '2026', '27Y': '2027' };
+    var yLabel = yearLabels[yearCode] || yearCode;
+    var gLabel = adminMap[groupCode] ? (isVi ? adminMap[groupCode].vi : adminMap[groupCode].en) || groupCode : groupCode;
+    var farmersInGroup = (filteredData.farmers || []).filter(function(f) { return (f.Farmer_Group_Name || 'N/A') === groupCode; });
+    var ydDoneMap = {};
+    var ydActMap = {};
+    (filteredData.yearly || []).forEach(function(r) {
+        if ((r.Year || '').trim() !== yearCode) return;
+        if ((r.Status || '').trim() === 'Act') {
+            ydActMap[r.Farmer_ID] = true;
+            if ((r.Activity || '').trim() === 'Done') ydDoneMap[r.Farmer_ID] = true;
+        }
+    });
+    var activeList = farmersInGroup.filter(function(f) { return ydActMap[f.Farmer_ID]; });
+    var noRecList = farmersInGroup.filter(function(f) { return !ydActMap[f.Farmer_ID]; });
+    activeList.sort(function(a, b) {
         var da = ydDoneMap[a.Farmer_ID] ? 0 : 1;
         var db = ydDoneMap[b.Farmer_ID] ? 0 : 1;
         return da - db || (a.Full_Name || '').localeCompare(b.Full_Name || '');
     });
-    var gLabel = adminMap[groupCode] ? (isVi ? adminMap[groupCode].vi : adminMap[groupCode].en) || groupCode : groupCode;
-    var doneCount = activeList.filter(function (f) { return ydDoneMap[f.Farmer_ID]; }).length;
-    var title = gLabel + ' (' + doneCount + '/' + activeList.length + ')';
-    if (inaList.length > 0) title += ' | InA: ' + inaList.length;
+    var doneCount = activeList.filter(function(f) { return ydDoneMap[f.Farmer_ID]; }).length;
+    var title = yLabel + ' · ' + gLabel + ' (' + doneCount + '/' + activeList.length + ')';
     var html = '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
-    html += '<thead class="table-custom-header"><tr><th>#</th>';
-    html += '<th>' + (isVi ? 'Hộ dân' : 'Farmer') + '</th>';
+    html += '<thead class="table-custom-header"><tr>';
+    html += '<th>#</th><th>' + (isVi ? 'Hộ dân' : 'Farmer') + '</th>';
     html += '<th>' + (isVi ? 'Trạng thái' : 'Status') + '</th>';
     html += '<th>' + (isVi ? 'DT (ha)' : 'Area') + '</th>';
     html += '</tr></thead><tbody>';
-    activeList.forEach(function (f, i) {
+    activeList.forEach(function(f, i) {
         var isDone = !!ydDoneMap[f.Farmer_ID];
         html += '<tr class="kpi-drill-row' + (isDone ? ' table-success' : '') + '" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')">';
         html += '<td>' + (i + 1) + '</td>';
@@ -7282,19 +7340,18 @@ function kpiDrillCompletionGroup(groupCode) {
         html += '<td>' + (parseFloat(f.Total_Coffee_Area) || 0).toFixed(2) + '</td>';
         html += '</tr>';
     });
-    // Show InA farmers in separate section
-    if (inaList.length > 0) {
-        html += '<tr><td colspan="4" class="text-center text-secondary py-2" style="background:#f5f5f5;font-weight:600;">' + (isVi ? 'Hộ đã loại (InA): ' : 'Removed (InA): ') + inaList.length + '</td></tr>';
-        inaList.forEach(function (f, i) {
+    if (noRecList.length > 0) {
+        html += '<tr><td colspan="4" class="text-center text-secondary py-2" style="background:#f5f5f5;font-weight:600;">' + (isVi ? 'Không có dữ liệu năm này: ' : 'No record this year: ') + noRecList.length + '</td></tr>';
+        noRecList.forEach(function(f, i) {
             html += '<tr class="kpi-drill-row" style="opacity:0.5;" onclick="showFarmerDetails(\'' + escapeHtml(f.Farmer_ID) + '\')">';
             html += '<td>' + (activeList.length + i + 1) + '</td>';
             html += '<td>' + escapeHtml(f.Full_Name || f.Farmer_ID) + '</td>';
-            html += '<td><i class="fas fa-ban text-secondary"></i> InA</td>';
+            html += '<td><i class="fas fa-minus text-secondary"></i> —</td>';
             html += '<td>' + (parseFloat(f.Total_Coffee_Area) || 0).toFixed(2) + '</td>';
             html += '</tr>';
         });
     }
-    if (allInGroup.length === 0) html += '<tr><td colspan="4" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
+    if (farmersInGroup.length === 0) html += '<tr><td colspan="4" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
     html += '</tbody></table></div>';
     kpiDrillPush(title, html);
 }
