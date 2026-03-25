@@ -985,6 +985,22 @@ function getSpeciesName(code) {
     return code;
 }
 
+// Reverse lookup: species name (VI or EN) → Species_ID
+function getSpeciesId(name) {
+    if (!name) return name;
+    var n = String(name).trim();
+    if (speciesMap[n]) return n; // already an ID
+    var lower = n.toLowerCase();
+    var found = null;
+    Object.keys(speciesMap).forEach(function (id) {
+        if (found) return;
+        if (speciesMap[id].vi.trim().toLowerCase() === lower) { found = id; return; }
+        if (speciesMap[id].en.trim().toLowerCase() === lower) { found = id; return; }
+        if (speciesMap[id].full.trim().toLowerCase() === lower) { found = id; }
+    });
+    return found || n; // fallback: return original name if no match
+}
+
 function resolveValue(key, value, tName) {
     if (!value) return "";
     const c = FIELD_MAPPING[tName];
@@ -6472,24 +6488,33 @@ function showKpiDrilldown(kpiType) {
             speciesStats[sp].planted += parseFloat(s.Quantity) || 0;
             speciesStats[sp].farmers.add(s.Farmer_ID);
         });
+        // Build Species_ID → Species_Name reverse map for survival_check matching
+        var spIdToName = {}; // Species_ID → Species_Name (as used in support table)
+        Object.keys(speciesStats).forEach(function (spName) {
+            var spId = getSpeciesId(spName);
+            if (spId !== spName) spIdToName[spId] = spName; // ID differs from name
+            spIdToName[spName] = spName; // direct match fallback
+        });
         // Alive from survival_check: latest Trees_Alive per (Plot_ID, Species_Code)
         var scLatest3 = {};
         (filteredData.survival_check || []).forEach(function (sc) {
             var code = (sc.Species_Code || '').trim();
             if (!code) return;
+            var mappedName = spIdToName[code]; // resolve ID or name → canonical name
+            if (!mappedName) return; // species not in our filtered set
             var plotId = (sc.Plot_ID || '').trim();
             var round = String(sc.Check_Round || '');
             var alive = parseFloat(sc.Trees_Alive) || 0;
-            var key = plotId + '\x00' + code;
+            var key = plotId + '\x00' + mappedName;
             if (!scLatest3[key] || round >= scLatest3[key].round) scLatest3[key] = { round: round, alive: alive };
         });
         var scBySp3 = {}, scCheckedPlots3 = {};
         Object.keys(scLatest3).forEach(function (key) {
-            var parts = key.split('\x00'); var code = parts[1];
-            scBySp3[code] = (scBySp3[code] || 0) + scLatest3[key].alive;
+            var parts = key.split('\x00'); var name = parts[1];
+            scBySp3[name] = (scBySp3[name] || 0) + scLatest3[key].alive;
             var plotId = parts[0];
-            if (!scCheckedPlots3[code]) scCheckedPlots3[code] = new Set();
-            scCheckedPlots3[code].add(plotId);
+            if (!scCheckedPlots3[name]) scCheckedPlots3[name] = new Set();
+            scCheckedPlots3[name].add(plotId);
         });
         var spKeys = Object.keys(speciesStats).sort(function (a, b) { return speciesStats[b].planted - speciesStats[a].planted; });
         var html = '<div class="table-responsive"><table class="table table-sm table-striped table-hover" style="font-size:0.82rem;">';
@@ -6921,14 +6946,16 @@ function showKpiDrilldown(kpiType) {
 
 // --- KPI Drill sub-handlers ---
 
-// Build alive-by-farmer map from survival_check for a given species
-function buildScAliveByFarmer(speciesCode) {
+// Build alive-by-farmer map from survival_check for a given species name
+// Matches sc.Species_Code against both Species_ID (via reverse lookup) and direct name
+function buildScAliveByFarmer(speciesName) {
+    var speciesId = getSpeciesId(speciesName); // may equal speciesName if no match
     var plotFarmerMap = {};
     (rawData.plots || []).forEach(function (p) { plotFarmerMap[p['Plot_Id'] || ''] = p['Farmer_ID'] || ''; });
     var scLatest = {};
     (filteredData.survival_check || []).forEach(function (sc) {
         var code = (sc.Species_Code || '').trim();
-        if (code !== speciesCode) return;
+        if (code !== speciesId && code !== speciesName) return;
         var plotId = (sc.Plot_ID || '').trim();
         var round = String(sc.Check_Round || '');
         var alive = parseFloat(sc.Trees_Alive) || 0;

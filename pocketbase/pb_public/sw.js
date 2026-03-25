@@ -5,7 +5,7 @@
  *   - PocketBase API calls: Network-First (fallback to IndexedDB in app code)
  */
 
-var CACHE_NAME = 'pffp-cache-v54';
+var CACHE_NAME = 'pffp-cache-v55';
 
 // Only precache critical LOCAL files (fast, always available)
 // CDN libraries will be cached on-demand when first requested
