@@ -1580,17 +1580,33 @@ function reDrawAnalyticsCharts() {
 // --- DRAW DASHBOARD CHARTS ---
 function drawCharts(farmers, plots, yearly) {
 
-    // 1. Participation by Year (Số hộ - Integer)
-    let yearCounts = {};
-    farmers.forEach(item => {
-        let yVal = item['Participation Year'];
-        if (yVal) {
-            let label = resolveValue('Participation Year', yVal, 'Farmers');
-            if (!yearCounts[label]) yearCounts[label] = 0;
-            yearCounts[label]++;
-        }
+    // 1. Participation by Year — from farmer_year table (unique farmers per year-combination)
+    var fidsFiltered = new Set(farmers.map(function(f) { return String(f['Farmer_ID']); }));
+    var farmerYearsMap = {};  // fid -> Set of year codes
+    (rawData.farmer_year || []).forEach(function(fy) {
+        var fid = String(fy['Farmer_ID'] || '').trim();
+        if (!fidsFiltered.has(fid)) return;
+        var yr = String(getFarmerYearValue(fy) || '').trim();
+        if (!yr) return;
+        if (!farmerYearsMap[fid]) farmerYearsMap[fid] = new Set();
+        farmerYearsMap[fid].add(yr);
     });
-    let partData = Object.keys(yearCounts).map(k => ({ label: k, value: yearCounts[k], code: k }));
+    // Convert year code to readable label: 24Y -> 2024, 25Y -> 2025
+    function yrLabel(yr) { var m = yr.match(/^(\d{2})Y$/i); return m ? '20' + m[1] : yr; }
+    var yearComboMap = {};
+    Object.keys(farmerYearsMap).forEach(function(fid) {
+        var yrs = Array.from(farmerYearsMap[fid]).sort();
+        var label = yrs.map(yrLabel).join(', ');
+        if (!yearComboMap[label]) yearComboMap[label] = { count: 0, code: yrs[0] };
+        yearComboMap[label].count++;
+    });
+    // Farmers with no farmer_year record -> N/A
+    var noFYCount = farmers.filter(function(f) { return !farmerYearsMap[String(f['Farmer_ID'])]; }).length;
+    if (noFYCount > 0) yearComboMap['N/A'] = { count: noFYCount, code: 'All' };
+    var partData = Object.keys(yearComboMap).map(function(k) {
+        return { label: k, value: yearComboMap[k].count, code: yearComboMap[k].code };
+    });
+    partData.sort(function(a, b) { return b.value - a.value; });
 
     if (chartInstances['chartParticipation']) chartInstances['chartParticipation'].destroy();
     let ctxPart = document.getElementById('chartParticipation').getContext('2d');
