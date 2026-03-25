@@ -6778,7 +6778,7 @@ function showKpiDrilldown(kpiType) {
             var st = spStats[sn];
             var pct = totalQty > 0 ? (st.qty / totalQty * 100).toFixed(1) : 0;
             var barW = maxQty > 0 ? (st.qty / maxQty * 100).toFixed(1) : 0;
-            html += '<tr class="kpi-drill-row" onclick="kpiDrillPlantedSpeciesGroups(' + JSON.stringify(sn) + ')">';
+            html += '<tr class="kpi-drill-row" onclick="kpiDrillPlantedSpeciesGroups(\'' + sn.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\')">';
             html += '<td>' + (i + 1) + '</td>';
             html += '<td><strong>' + escapeHtml(sn) + '</strong></td>';
             html += '<td>' + st.qty.toLocaleString() + '</td>';
