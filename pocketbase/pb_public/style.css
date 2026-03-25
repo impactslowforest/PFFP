@@ -2732,3 +2732,15 @@ body.tab-charts .search-bar-wrapper {
         transform: translateX(0) translateY(0);
     }
 }
+
+
+/* === DRILL-DOWN TABLE ALIGNMENT === */
+/* Body rows: right-align all, left-align name column (2nd) */
+tr.kpi-drill-row td { text-align: right; }
+tr.kpi-drill-row td:nth-child(2) { text-align: left; }
+/* Header rows in detail modal: match body alignment */
+#detailContent .table-custom-header th { text-align: right; }
+#detailContent .table-custom-header th:nth-child(2) { text-align: left; }
+/* Footer total rows */
+#detailContent tfoot td { text-align: right; }
+#detailContent tfoot td:first-child { text-align: left; }
