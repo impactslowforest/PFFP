@@ -6507,7 +6507,7 @@ function showKpiDrilldown(kpiType) {
             var survVal = eQty > 0 ? ((st.alive / eQty) * 100).toFixed(1) + '%' : (isVi ? 'Chưa ĐG' : 'N/A');
             totalPlanted3 += st.planted;
             totalAlive3 += st.alive;
-            html += '<tr class="kpi-drill-row" onclick="kpiDrillSpeciesToGroups(\'' + escapeHtml(sp) + '\')">';
+            html += '<tr class="kpi-drill-row" onclick="kpiDrillSpeciesToGroups(\'' + sp.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\')">';
             html += '<td>' + (i + 1) + '</td>';
             html += '<td><code>' + escapeHtml(sp) + '</code></td>';
             html += '<td>' + escapeHtml(getSpeciesName(sp)) + '</td>';
@@ -6966,6 +6966,63 @@ function kpiDrillSpeciesToGroups(speciesCode) {
 }
 
 // Species + Group → Farmer list
+// Total Species KPI → Species → Groups for a species
+function kpiDrillSpeciesToGroups(speciesCode) {
+    var isVi = currentLang === 'vi';
+    var farmers = filteredData.farmers || [];
+    var farmerMap = {};
+    (rawData.farmers || []).forEach(function (f) { farmerMap[f.Farmer_ID] = f; });
+    var fids = new Set(farmers.map(function (f) { return f.Farmer_ID; }));
+    var suppAll = rawData.supported || [];
+    var recs = suppAll.filter(function (s) {
+        return fids.has(s.Farmer_ID) && s.Species_Name === speciesCode && (s.Unit || '').toLowerCase().indexOf('tree') >= 0;
+    });
+    var groupStats = {};
+    recs.forEach(function (s) {
+        var ff = farmerMap[s.Farmer_ID] || {};
+        var gc = ff.Farmer_Group_Name || 'N/A';
+        if (!groupStats[gc]) groupStats[gc] = { planted: 0, alive: 0, evalQty: 0, farmers: new Set() };
+        groupStats[gc].planted += parseFloat(s.Quantity) || 0;
+        groupStats[gc].farmers.add(s.Farmer_ID);
+        var aVal = s.A_live;
+        if (aVal !== null && aVal !== '' && aVal !== undefined && parseFloat(aVal) > 0) {
+            groupStats[gc].alive += parseFloat(aVal) || 0;
+            groupStats[gc].evalQty += parseFloat(s.Quantity) || 0;
+        }
+    });
+    var gKeys = Object.keys(groupStats).sort(function (a, b) { return groupStats[b].planted - groupStats[a].planted; });
+    var totalPlanted = gKeys.reduce(function (s, k) { return s + groupStats[k].planted; }, 0);
+    var speciesLabel = escapeHtml(getSpeciesName(speciesCode) || speciesCode);
+    var title = speciesLabel + ' — ' + (isVi ? 'Theo nhóm' : 'By Group') + ' (' + Math.round(totalPlanted).toLocaleString() + ' ' + (isVi ? 'cây' : 'trees') + ')';
+    var html = '<div class="table-responsive"><table class="table table-sm table-hover" style="font-size:0.82rem;">';
+    html += '<thead class="table-custom-header"><tr>';
+    html += '<th>#</th>';
+    html += '<th>' + (isVi ? 'Nhóm' : 'Group') + '</th>';
+    html += '<th>' + (isVi ? 'Số hộ' : 'Farmers') + '</th>';
+    html += '<th>' + (isVi ? 'Số cây' : 'Planted') + '</th>';
+    html += '<th>' + (isVi ? 'Còn sống' : 'Alive') + '</th>';
+    html += '<th>' + (isVi ? 'Tỷ lệ sống' : 'Survival') + '</th>';
+    html += '</tr></thead><tbody>';
+    gKeys.forEach(function (gc, i) {
+        var d = groupStats[gc];
+        var gLabel = adminMap[gc] ? (isVi ? adminMap[gc].vi : adminMap[gc].en) || gc : gc;
+        var survVal = d.evalQty > 0 ? (d.alive / d.evalQty * 100).toFixed(1) + '%' : (isVi ? 'Chưa ĐG' : 'N/A');
+        var safeSpec = speciesCode.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        var safeGC = gc.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        html += '<tr class="kpi-drill-row" onclick="kpiDrillSpeciesGroupFarmers(\'' + safeSpec + '\',\'' + safeGC + '\')">';
+        html += '<td>' + (i + 1) + '</td>';
+        html += '<td>' + escapeHtml(gLabel) + '</td>';
+        html += '<td>' + d.farmers.size + '</td>';
+        html += '<td>' + Math.round(d.planted).toLocaleString() + '</td>';
+        html += '<td>' + (d.alive > 0 ? Math.round(d.alive).toLocaleString() : '-') + '</td>';
+        html += '<td>' + survVal + '</td>';
+        html += '</tr>';
+    });
+    if (gKeys.length === 0) html += '<tr><td colspan="6" class="text-center text-muted py-3">' + (isVi ? 'Không có dữ liệu' : 'No data') + '</td></tr>';
+    html += '</tbody></table></div>';
+    kpiDrillPush(title, html);
+}
+
 function kpiDrillSpeciesGroupFarmers(speciesCode, groupCode) {
     var isVi = currentLang === 'vi';
     var farmers = filteredData.farmers || [];
